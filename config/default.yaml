@@ -1,0 +1,29 @@
+atlas:
+  data_dir: "~/.atlas"
+  log_level: "INFO"
+
+control:
+  autonomy_level: "act_within_bounds"
+  allowed_read_paths:
+    - "."
+  allowed_write_paths:
+    - "."
+  blocked_paths:
+    - "~/.ssh"
+    - "~/.gnupg"
+
+memory:
+  working_memory_max_keys: 100
+  episode_retention_days: 90
+  context_default_token_budget: 4000
+
+skills:
+  seed_skills:
+    - "file.read"
+    - "file.write"
+    - "file.search"
+    - "shell.execute"
+
+environment:
+  command_timeout_seconds: 30
+  claude_code_timeout_seconds: 120

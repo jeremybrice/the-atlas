@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atlas"
+version = "0.1.0"
+description = "Autonomous Tool-Learning Agent System"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1",
+    "aiosqlite>=0.20",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+]
+
+[project.scripts]
+atlas = "atlas.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/atlas"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+src = ["src"]
