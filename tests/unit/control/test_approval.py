@@ -37,3 +37,16 @@ async def test_auto_deny_mode():
     )
     result = await workflow.request_approval(request)
     assert result == ApprovalResult.DENIED
+
+
+async def test_non_interactive_denies():
+    workflow = ApprovalWorkflow(interactive=False)
+    request = ApprovalRequest(
+        action=ProposedAction(
+            action_type="filesystem_write",
+            domain="skills",
+            description="write file",
+        ),
+    )
+    result = await workflow.request_approval(request)
+    assert result == ApprovalResult.DENIED

@@ -49,6 +49,17 @@ def test_act_within_bounds_requires_approval_for_medium_risk():
     assert engine.evaluate(action) == PolicyDecision.REQUIRE_APPROVAL
 
 
+def test_act_within_bounds_requires_approval_for_high_risk():
+    engine = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
+    action = ProposedAction(
+        action_type="shell_execute",
+        domain="skills",
+        description="run a risky command",
+        risk_level=RiskLevel.HIGH,
+    )
+    assert engine.evaluate(action) == PolicyDecision.REQUIRE_APPROVAL
+
+
 def test_act_within_bounds_denies_critical_risk():
     engine = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
     action = ProposedAction(
