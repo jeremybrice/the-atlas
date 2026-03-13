@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from atlas.contracts.errors import EnvironmentActionError
 from atlas.contracts.types import (
     ActionResult,
     ClaudeResponse,
