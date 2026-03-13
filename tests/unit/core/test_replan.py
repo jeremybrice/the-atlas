@@ -28,3 +28,79 @@ def test_replan_prompt_includes_remaining():
     )
     assert "step 3" in prompt
     assert "step 4" in prompt
+
+
+import pytest
+from unittest.mock import AsyncMock
+from atlas.contracts.types import ClaudeResponse
+
+
+@pytest.mark.asyncio
+async def test_replan_called_on_task_failure(tmp_path):
+    """When a task fails, the loop should attempt replanning via Claude."""
+    from atlas.contracts.types import AutonomyLevel
+    from atlas.control.policy import PolicyEngine
+    from atlas.control.audit import AuditLogger
+    from atlas.control.approval import ApprovalWorkflow
+    from atlas.memory.working import WorkingMemoryStore
+    from atlas.memory.episodic import EpisodicMemoryStore
+    from atlas.memory.store import DatabaseStore
+    from atlas.env.filesystem import FilesystemProvider
+    from atlas.env.process import ProcessProvider
+    from atlas.env.claude import ClaudeCodeBridge
+    from atlas.env.facade import EnvironmentFacade
+    from atlas.skills.registry import SkillRegistry
+    from atlas.skills.runtime import InvocationRuntime
+    from atlas.skills.seed import register_seed_skills
+    from atlas.core.loop import ExecutionLoop
+    from atlas.core.tasks import Task
+    from atlas.core.missions import Mission
+
+    db = DatabaseStore(str(tmp_path / "test.db"))
+    await db.initialize()
+
+    fs = FilesystemProvider(workspace=str(tmp_path))
+    proc = ProcessProvider()
+
+    mock_claude = AsyncMock(spec=ClaudeCodeBridge)
+    mock_claude.oneshot = AsyncMock(return_value=ClaudeResponse(
+        content='{"tasks": []}',
+        parsed_output={"tasks": []},
+    ))
+
+    env = EnvironmentFacade(filesystem=fs, process=proc, claude=mock_claude)
+
+    registry = SkillRegistry()
+    register_seed_skills(registry, fs, proc)
+    runtime = InvocationRuntime(registry)
+
+    policy = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
+    audit = AuditLogger(db=db.db)
+    await audit.initialize()
+    approval = ApprovalWorkflow(auto_approve=True)
+    working = WorkingMemoryStore()
+    episodic = EpisodicMemoryStore(db)
+
+    loop = ExecutionLoop(
+        registry=registry,
+        runtime=runtime,
+        environment=env,
+        policy=policy,
+        audit=audit,
+        approval=approval,
+        working_memory=working,
+        episodic_memory=episodic,
+    )
+
+    tasks = [
+        Task(description="Read nonexistent file", skill_id="file.read",
+             input_params={"path": str(tmp_path / "nonexistent.txt")}),
+        Task(description="Write a file", skill_id="file.write",
+             input_params={"path": str(tmp_path / "out.txt"), "content": "hello"}),
+    ]
+    mission = Mission(goal_text="test replanning", tasks=tasks)
+    result = await loop.execute_mission(mission)
+
+    assert mock_claude.oneshot.call_count >= 1
+
+    await db.close()

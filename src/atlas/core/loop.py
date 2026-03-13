@@ -19,7 +19,7 @@ from atlas.contracts.types import (
 from atlas.control.approval import ApprovalWorkflow
 from atlas.control.audit import AuditLogger
 from atlas.control.policy import PolicyEngine
-from atlas.core.missions import Mission
+from atlas.core.missions import Mission, parse_task_plan, PLANNING_SYSTEM_PROMPT
 from atlas.core.tasks import Task
 from atlas.env.facade import EnvironmentFacade
 from atlas.memory.episodic import EpisodicMemoryStore
@@ -63,6 +63,7 @@ class ExecutionLoop:
         working_memory: WorkingMemoryStore,
         episodic_memory: EpisodicMemoryStore,
         forge=None,
+        max_replans: int = 2,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -73,28 +74,60 @@ class ExecutionLoop:
         self._working = working_memory
         self._episodic = episodic_memory
         self._forge = forge
+        self._max_replans = max_replans
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
         ctx = ExecutionContext.new(mission_id=mission.mission_id)
         actions_log: list[dict] = []
+        replans_remaining = self._max_replans
 
         total = len(mission.tasks)
-        for i, task in enumerate(mission.tasks):
+        i = 0
+        while i < len(mission.tasks):
+            task = mission.tasks[i]
             step_ctx = ExecutionContext(
                 correlation_id=ctx.correlation_id,
                 mission_id=mission.mission_id,
                 task_id=task.task_id,
             )
-            logger.info(f"[task {i+1}/{total}] {task.description}")
+            logger.info("[task %d/%d] %s", i + 1, total, task.description)
 
-            await self._execute_task(task, step_ctx)
+            success = await self._execute_task(task, step_ctx)
             actions_log.append({
                 "task_id": task.task_id,
                 "description": task.description,
                 "skill_id": task.skill_id,
                 "status": task.status.value,
             })
+
+            if not success and replans_remaining > 0:
+                replans_remaining -= 1
+                remaining_descs = [t.description for t in mission.tasks[i + 1:]]
+                skills_desc = ", ".join(s.skill_id for s in self._registry.list_all())
+                replan_prompt = build_replan_prompt(
+                    original_goal=mission.goal_text,
+                    failed_task_desc=task.description,
+                    error=task.error or "unknown",
+                    remaining_tasks=remaining_descs,
+                    skills=skills_desc,
+                    context="",
+                )
+                try:
+                    response = await self._env.claude_oneshot(
+                        replan_prompt, system_prompt=PLANNING_SYSTEM_PROMPT,
+                    )
+                    new_tasks = parse_task_plan(response.content)
+                    if new_tasks:
+                        mission.tasks = mission.tasks[: i + 1] + new_tasks
+                        total = len(mission.tasks)
+                        logger.info("Replanned: %d new tasks after failure", len(new_tasks))
+                except Exception as e:
+                    logger.warning("Replanning failed: %s", e)
+            elif not success:
+                break
+
+            i += 1
 
         all_succeeded = all(
             t.status == TaskStatus.COMPLETED for t in mission.tasks
