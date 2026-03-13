@@ -2,6 +2,11 @@ atlas:
   data_dir: "~/.atlas"
   log_level: "INFO"
 
+daemon:
+  socket_path: "~/.atlas/atlas.sock"
+  pid_file: "~/.atlas/daemon.pid"
+  max_concurrent_tasks: 1
+
 control:
   autonomy_level: "act_within_bounds"
   allowed_read_paths:
@@ -16,6 +21,7 @@ memory:
   working_memory_max_keys: 100
   episode_retention_days: 90
   context_default_token_budget: 4000
+  pattern_extraction_interval_minutes: 30
 
 skills:
   seed_skills:
@@ -23,7 +29,18 @@ skills:
     - "file.write"
     - "file.search"
     - "shell.execute"
+  forge_enabled: true
+  forge_max_retries: 1
+  custom_skills_dir: "~/.atlas/skills"
 
 environment:
   command_timeout_seconds: 30
-  claude_code_timeout_seconds: 120
+
+observation:
+  filesystem_debounce_seconds: 5.0
+  watches: []
+
+reactive:
+  enabled: false
+  rules: []
+  cooldown_default_seconds: 60

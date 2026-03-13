@@ -1,6 +1,6 @@
 # Decisions Log
 
-**Mission:** ATLAS Phase 1 MVP Implementation
+**Mission:** ATLAS Phase 2 — Daemon + Reactive Loop + Learning
 **Started:** 2026-03-13
 
 ---

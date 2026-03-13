@@ -50,3 +50,47 @@ def test_task_queue_all_tasks():
     queue.enqueue(Task(description="a"))
     queue.enqueue(Task(description="b"))
     assert len(queue.all_tasks()) == 2
+
+
+def test_priority_queue_ordering():
+    q = TaskQueue()
+    low = Task(description="low priority", priority=10)
+    high = Task(description="high priority", priority=1)
+    q.enqueue(low)
+    q.enqueue(high)
+    next_task = q.get_next()
+    assert next_task.description == "high priority"
+
+
+def test_task_deduplication():
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    q.enqueue(Task(description="run tests again", dedup_key="tests"))
+    assert q.size() == 1  # second one was dropped
+
+
+def test_task_dedup_different_keys():
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    q.enqueue(Task(description="run lint", dedup_key="lint"))
+    assert q.size() == 2
+
+
+def test_dedup_key_cleared_on_complete():
+    """After completing a task, the same dedup_key can be enqueued again."""
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    task = q.get_next()
+    q.complete(task.task_id)
+    q.enqueue(Task(description="run tests again", dedup_key="tests"))
+    assert q.pending_count() == 1
+
+
+def test_dedup_key_cleared_on_fail():
+    """After a task fails, the same dedup_key can be enqueued again."""
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    task = q.get_next()
+    q.fail(task.task_id, error="broke")
+    q.enqueue(Task(description="run tests retry", dedup_key="tests"))
+    assert q.pending_count() == 1

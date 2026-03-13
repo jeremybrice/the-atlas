@@ -84,4 +84,16 @@ def _parse_numbered_list(text: str) -> list[Task]:
     return tasks
 
 
-PLANNING_PROMPT_TEMPLATE = """Respond with only JSON. Goal: {goal}. Skills: {skills}. Format: {{"tasks":[{{"description":"...","skill":"skill.id","params":{{}}}}]}}"""
+PLANNING_SYSTEM_PROMPT = (
+    "You are a task planner. Respond ONLY with valid JSON. "
+    "No explanations, no markdown fences, no commentary. Just the raw JSON object."
+)
+
+PLANNING_PROMPT_TEMPLATE = (
+    'Decompose this goal into tasks. Goal: {goal}. '
+    'Available skills: {skills}. '
+    'Project context: {context}. '
+    'Use the project context to produce accurate file paths, commands, and content. '
+    'Respond with ONLY this JSON format: '
+    '{{"tasks":[{{"description":"step description","skill":"skill.id","params":{{}}}}]}}'
+)

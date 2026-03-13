@@ -22,18 +22,35 @@ class Task:
     error: str | None = None
     retry_count: int = 0
     max_retries: int = 3
+    priority: int = 5
+    dedup_key: str = ""
 
 
 class TaskQueue:
-    """Simple FIFO task queue. Phase 1: no priority, no dependencies."""
+    """Priority task queue with deduplication support."""
 
     def __init__(self):
         self._tasks: dict[str, Task] = {}
         self._order: list[str] = []
+        self._dedup_keys: set[str] = set()
 
     def enqueue(self, task: Task) -> None:
+        # Dedup check: skip if same dedup_key already pending
+        if task.dedup_key:
+            if task.dedup_key in self._dedup_keys:
+                return
+            self._dedup_keys.add(task.dedup_key)
+
         self._tasks[task.task_id] = task
-        self._order.append(task.task_id)
+        # Insert maintaining priority order (lower number = higher priority)
+        inserted = False
+        for i, tid in enumerate(self._order):
+            if self._tasks[tid].priority > task.priority:
+                self._order.insert(i, task.task_id)
+                inserted = True
+                break
+        if not inserted:
+            self._order.append(task.task_id)
 
     def get_next(self) -> Task | None:
         for task_id in self._order:
@@ -47,11 +64,15 @@ class TaskQueue:
         task = self._tasks[task_id]
         task.status = TaskStatus.COMPLETED
         task.result = result
+        if task.dedup_key:
+            self._dedup_keys.discard(task.dedup_key)
 
     def fail(self, task_id: str, error: str = "") -> None:
         task = self._tasks[task_id]
         task.status = TaskStatus.FAILED
         task.error = error
+        if task.dedup_key:
+            self._dedup_keys.discard(task.dedup_key)
 
     def size(self) -> int:
         return len(self._tasks)

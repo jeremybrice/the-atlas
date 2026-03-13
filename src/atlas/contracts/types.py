@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -223,3 +223,49 @@ class ApprovalResult(Enum):
     APPROVED = "approved"
     DENIED = "denied"
     TIMEOUT = "timeout"
+
+
+# --- Phase 2: Observation, Daemon, Procedural Memory ---
+
+class EventType(str, Enum):
+    FILESYSTEM = "filesystem"
+    SCHEDULED = "scheduled"
+    GOAL = "goal"
+
+
+@dataclass
+class ObservationEvent:
+    event_type: EventType
+    source: str
+    payload: dict[str, Any] = field(default_factory=dict)
+    event_id: str = field(default_factory=new_id)
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    priority: int = 5
+
+
+@dataclass
+class Procedure:
+    name: str
+    description: str
+    trigger_pattern: str
+    steps: list[dict[str, Any]]
+    procedure_id: str = field(default_factory=new_id)
+    success_rate: float = 0.0
+    use_count: int = 0
+    last_used: str = ""
+    created_from: str = ""
+
+
+@dataclass
+class DaemonCommand:
+    command: str
+    payload: dict[str, Any] = field(default_factory=dict)
+    command_id: str = field(default_factory=new_id)
+
+
+@dataclass
+class DaemonResponse:
+    command_id: str
+    status: str
+    payload: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
