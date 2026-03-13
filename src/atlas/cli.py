@@ -130,8 +130,8 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
         if not tasks:
             click.echo("[error] Could not parse a task plan from Claude's response.", err=True)
-            click.echo("[debug] Raw response:", err=True)
-            click.echo(response.content[:500], err=True)
+            click.echo(f"[debug] Raw response ({len(response.content)} chars):", err=True)
+            click.echo(repr(response.content[:500]), err=True)
             sys.exit(1)
 
         mission = Mission(goal_text=goal_text, tasks=tasks)

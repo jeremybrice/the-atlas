@@ -67,14 +67,22 @@ class ClaudeCodeBridge:
             )
 
         elapsed = int((time.monotonic() - start) * 1000)
+        stderr_text = stderr.decode(errors="replace").strip()
 
         if proc.returncode != 0:
-            error_text = stderr.decode(errors="replace").strip()
             raise ClaudeCodeError(
-                f"Claude Code CLI exited with code {proc.returncode}: {error_text}"
+                f"Claude Code CLI exited with code {proc.returncode}: {stderr_text}"
             )
 
         raw_output = stdout.decode(errors="replace")
+
+        # Log diagnostics for debugging empty responses
+        if not raw_output.strip():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Claude returned empty stdout. returncode={proc.returncode}, "
+                          f"stderr={stderr_text!r}, elapsed={elapsed}ms")
+
         response = parse_claude_response(raw_output)
         response.execution_time_ms = elapsed
         return response
