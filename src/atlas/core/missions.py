@@ -84,24 +84,23 @@ def _parse_numbered_list(text: str) -> list[Task]:
     return tasks
 
 
-PLANNING_PROMPT_TEMPLATE = """You are ATLAS, an autonomous agent. Decompose the following goal into a sequence of executable tasks.
+PLANNING_PROMPT_TEMPLATE = """You are ATLAS, an autonomous agent. You MUST respond with ONLY a JSON object, no other text.
+
+Decompose this goal into tasks using ONLY these skills:
+{skills}
 
 GOAL: {goal}
 
-AVAILABLE SKILLS:
-{skills}
+WORKSPACE: {env_state}
 
-ENVIRONMENT STATE:
-{env_state}
+You MUST respond with ONLY this JSON format, nothing else:
+{{"tasks": [{{"description": "step description", "skill": "skill.id", "params": {{"key": "value"}}}}]}}
 
-Respond with a JSON block:
-```json
-{{
-  "tasks": [
-    {{"description": "what this step does", "skill": "skill.id", "params": {{"key": "value"}}}},
-    ...
-  ]
-}}
-```
-
-Keep the plan simple and linear. Use only the available skills. Each task should be one skill invocation."""
+Rules:
+- Use ONLY the skills listed above
+- Each task = one skill invocation
+- For file.read: params needs "path"
+- For file.write: params needs "path" and "content"
+- For file.search: params needs "pattern" and optionally "root"
+- For shell.execute: params needs "command"
+- Respond with ONLY valid JSON, no markdown, no explanation"""
