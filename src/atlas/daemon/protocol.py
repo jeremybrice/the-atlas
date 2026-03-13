@@ -1,7 +1,4 @@
 """Daemon socket protocol -- JSON-over-Unix-socket with length prefix."""
-
-from __future__ import annotations
-
 import asyncio
 import json
 import logging

@@ -1,7 +1,4 @@
 """Event Router -- matches observation events to reactive rules."""
-
-from __future__ import annotations
-
 import fnmatch
 import time
 from dataclasses import dataclass

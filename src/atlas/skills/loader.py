@@ -1,7 +1,4 @@
 """Skill Loader — loads custom skills from Python files in a directory."""
-
-from __future__ import annotations
-
 import importlib.util
 import logging
 from pathlib import Path

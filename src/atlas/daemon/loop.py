@@ -1,7 +1,4 @@
 """Daemon main loop -- runs the socket server and dispatches commands."""
-
-from __future__ import annotations
-
 import asyncio
 import logging
 import os

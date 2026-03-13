@@ -1,7 +1,4 @@
 """Daemon process management -- PID file and lifecycle."""
-
-from __future__ import annotations
-
 import os
 from pathlib import Path
 

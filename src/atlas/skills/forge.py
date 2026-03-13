@@ -1,7 +1,4 @@
 """Skill Forge — generates new skills from capability gap descriptions."""
-
-from __future__ import annotations
-
 import logging
 from dataclasses import dataclass
 from pathlib import Path
