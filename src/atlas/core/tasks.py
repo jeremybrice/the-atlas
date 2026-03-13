@@ -64,11 +64,15 @@ class TaskQueue:
         task = self._tasks[task_id]
         task.status = TaskStatus.COMPLETED
         task.result = result
+        if task.dedup_key:
+            self._dedup_keys.discard(task.dedup_key)
 
     def fail(self, task_id: str, error: str = "") -> None:
         task = self._tasks[task_id]
         task.status = TaskStatus.FAILED
         task.error = error
+        if task.dedup_key:
+            self._dedup_keys.discard(task.dedup_key)
 
     def size(self) -> int:
         return len(self._tasks)

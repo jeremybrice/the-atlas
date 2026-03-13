@@ -74,3 +74,23 @@ def test_task_dedup_different_keys():
     q.enqueue(Task(description="run tests", dedup_key="tests"))
     q.enqueue(Task(description="run lint", dedup_key="lint"))
     assert q.size() == 2
+
+
+def test_dedup_key_cleared_on_complete():
+    """After completing a task, the same dedup_key can be enqueued again."""
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    task = q.get_next()
+    q.complete(task.task_id)
+    q.enqueue(Task(description="run tests again", dedup_key="tests"))
+    assert q.pending_count() == 1
+
+
+def test_dedup_key_cleared_on_fail():
+    """After a task fails, the same dedup_key can be enqueued again."""
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    task = q.get_next()
+    q.fail(task.task_id, error="broke")
+    q.enqueue(Task(description="run tests retry", dedup_key="tests"))
+    assert q.pending_count() == 1
