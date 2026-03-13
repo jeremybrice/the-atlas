@@ -35,7 +35,11 @@ class ClaudeCodeBridge:
     async def oneshot(
         self, prompt: str, system_prompt: str | None = None
     ) -> ClaudeResponse:
-        cmd = ["claude", "-p", prompt, "--output-format", "text"]
+        cmd = [
+            "claude", "-p", prompt,
+            "--output-format", "text",
+            "--disallowedTools", "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch",
+        ]
         if system_prompt:
             cmd.extend(["--system", system_prompt])
 
