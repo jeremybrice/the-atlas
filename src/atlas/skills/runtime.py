@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 
-from atlas.contracts.errors import SkillInvocationError
 from atlas.contracts.types import ExecutionContext, SkillResult, new_id
 from atlas.skills.registry import SkillRegistry
 

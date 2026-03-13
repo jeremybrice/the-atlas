@@ -1,10 +1,7 @@
 # tests/unit/env/test_claude.py
-import json
 
-import pytest
 
-from atlas.contracts.types import ClaudeResponse
-from atlas.env.claude import ClaudeCodeBridge, parse_claude_response
+from atlas.env.claude import parse_claude_response
 
 
 def test_parse_claude_response_plain_text():

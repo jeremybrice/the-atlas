@@ -1,10 +1,8 @@
 # tests/unit/core/test_missions.py
 import json
 
-import pytest
 
 from atlas.core.missions import parse_task_plan
-from atlas.core.tasks import Task
 
 
 def test_parse_task_plan_json():
