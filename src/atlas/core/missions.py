@@ -27,14 +27,33 @@ def parse_task_plan(raw: str) -> list[Task]:
     if not raw.strip():
         return []
 
-    # Try JSON block in markdown
-    json_match = re.search(r"```json\s*\n(.*?)\n```", raw, re.DOTALL)
+    # Try JSON block in markdown (```json ... ```)
+    json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", raw, re.DOTALL)
     if json_match:
-        return _parse_json_tasks(json_match.group(1))
+        try:
+            tasks = _parse_json_tasks(json_match.group(1))
+            if tasks:
+                return tasks
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
 
-    # Try raw JSON
+    # Try to find JSON object anywhere in the text
+    json_obj_match = re.search(r"\{.*\"tasks\"\s*:", raw, re.DOTALL)
+    if json_obj_match:
+        # Find the matching closing brace
+        start = json_obj_match.start()
+        try:
+            tasks = _parse_json_tasks(raw[start:])
+            if tasks:
+                return tasks
+        except (json.JSONDecodeError, KeyError, TypeError):
+            pass
+
+    # Try raw JSON (entire response is JSON)
     try:
-        return _parse_json_tasks(raw)
+        tasks = _parse_json_tasks(raw)
+        if tasks:
+            return tasks
     except (json.JSONDecodeError, KeyError, TypeError):
         pass
 

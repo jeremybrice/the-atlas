@@ -90,7 +90,7 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
     runtime = InvocationRuntime(registry)
 
     policy = PolicyEngine(autonomy_level=autonomy_level)
-    audit = AuditLogger(db_path=str(data_dir / "data" / "atlas.db"))
+    audit = AuditLogger(db=db.db)
     await audit.initialize()
     approval = ApprovalWorkflow(auto_approve=auto_approve)
 
@@ -108,49 +108,50 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         episodic_memory=episodic,
     )
 
-    # Plan the mission
-    click.echo(f"[planning] Decomposing goal: {goal_text}")
-
-    skills_desc = "\n".join(
-        f"- {s.skill_id}: {s.description}" for s in registry.list_all()
-    )
-    env_state = str(env.get_state())
-
-    prompt = PLANNING_PROMPT_TEMPLATE.format(
-        goal=goal_text, skills=skills_desc, env_state=env_state
-    )
-
     try:
-        response = await env.claude_oneshot(prompt)
-        tasks = parse_task_plan(response.content)
-    except Exception as e:
-        click.echo(f"[error] Planning failed: {e}", err=True)
+        # Plan the mission
+        click.echo(f"[planning] Decomposing goal: {goal_text}")
+
+        skills_desc = "\n".join(
+            f"- {s.skill_id}: {s.description}" for s in registry.list_all()
+        )
+        env_state = str(env.get_state())
+
+        prompt = PLANNING_PROMPT_TEMPLATE.format(
+            goal=goal_text, skills=skills_desc, env_state=env_state
+        )
+
+        try:
+            response = await env.claude_oneshot(prompt)
+            tasks = parse_task_plan(response.content)
+        except Exception as e:
+            click.echo(f"[error] Planning failed: {e}", err=True)
+            sys.exit(1)
+
+        if not tasks:
+            click.echo("[error] Could not parse a task plan from Claude's response.", err=True)
+            click.echo("[debug] Raw response:", err=True)
+            click.echo(response.content[:500], err=True)
+            sys.exit(1)
+
+        mission = Mission(goal_text=goal_text, tasks=tasks)
+        click.echo(f"[planned] {len(tasks)} tasks")
+
+        # Execute
+        result = await loop.execute_mission(mission)
+
+        # Report
+        completed = sum(1 for t in result.tasks if t.status.value == "completed")
+        total = len(result.tasks)
+        if result.status.value == "completed":
+            click.echo(f"[complete] {completed}/{total} tasks succeeded. Episode recorded.")
+        else:
+            click.echo(f"[failed] {completed}/{total} tasks succeeded. Mission failed.", err=True)
+            for t in result.tasks:
+                if t.error:
+                    click.echo(f"  - {t.description}: {t.error}", err=True)
+    finally:
         await db.close()
-        sys.exit(1)
-
-    if not tasks:
-        click.echo("[error] Could not parse a task plan from Claude's response.", err=True)
-        await db.close()
-        sys.exit(1)
-
-    mission = Mission(goal_text=goal_text, tasks=tasks)
-    click.echo(f"[planned] {len(tasks)} tasks")
-
-    # Execute
-    result = await loop.execute_mission(mission)
-
-    # Report
-    completed = sum(1 for t in result.tasks if t.status.value == "completed")
-    total = len(result.tasks)
-    if result.status.value == "completed":
-        click.echo(f"[complete] {completed}/{total} tasks succeeded. Episode recorded.")
-    else:
-        click.echo(f"[failed] {completed}/{total} tasks succeeded. Mission failed.", err=True)
-        for t in result.tasks:
-            if t.error:
-                click.echo(f"  - {t.description}: {t.error}", err=True)
-
-    await db.close()
 
 
 @main.command()

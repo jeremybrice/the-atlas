@@ -12,12 +12,14 @@ from atlas.contracts.types import AuditEntry
 class AuditLogger:
     """Append-only SQLite audit log."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str | None = None, db: aiosqlite.Connection | None = None):
         self._db_path = db_path
-        self._db: aiosqlite.Connection | None = None
+        self._db: aiosqlite.Connection | None = db
+        self._owns_connection = db is None
 
     async def initialize(self) -> None:
-        self._db = await aiosqlite.connect(self._db_path)
+        if self._db is None:
+            self._db = await aiosqlite.connect(self._db_path)
         await self._db.execute("""
             CREATE TABLE IF NOT EXISTS audit_log (
                 entry_id TEXT PRIMARY KEY,
@@ -35,7 +37,7 @@ class AuditLogger:
         await self._db.commit()
 
     async def close(self) -> None:
-        if self._db:
+        if self._db and self._owns_connection:
             await self._db.close()
 
     async def log(self, entry: AuditEntry) -> None:
