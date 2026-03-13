@@ -19,6 +19,9 @@ venv/
 *.swp
 *.swo
 
+# Claude Code local settings
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
