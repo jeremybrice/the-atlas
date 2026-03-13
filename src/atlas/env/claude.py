@@ -35,19 +35,25 @@ class ClaudeCodeBridge:
     async def oneshot(
         self, prompt: str, system_prompt: str | None = None
     ) -> ClaudeResponse:
-        cmd = ["claude", "-p", prompt]
+        cmd = ["claude", "-p"]
         if system_prompt:
             cmd.extend(["--system", system_prompt])
+
+        # Strip CLAUDECODE env var so nested claude calls work
+        import os
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
 
         start = time.monotonic()
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=self._timeout
+                proc.communicate(input=prompt.encode()), timeout=self._timeout
             )
         except FileNotFoundError:
             raise ClaudeCodeUnavailableError(
