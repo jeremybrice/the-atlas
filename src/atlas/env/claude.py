@@ -43,24 +43,19 @@ def parse_response_text(text: str) -> ClaudeResponse:
 
 
 class ClaudeCodeBridge:
-    """Calls the Anthropic Messages API. Phase 1: one-shot only."""
+    """Calls the Anthropic Messages API via async client."""
 
     def __init__(self, model: str = DEFAULT_MODEL, timeout: int = 120):
         self._model = model
         self._timeout = timeout
-        try:
-            self._client = anthropic.Anthropic()
-        except anthropic.AuthenticationError as e:
-            raise ClaudeCodeUnavailableError(
-                "ANTHROPIC_API_KEY not set or invalid."
-            ) from e
+        self._client = anthropic.AsyncAnthropic(timeout=timeout)
 
     async def oneshot(
         self, prompt: str, system_prompt: str | None = None
     ) -> ClaudeResponse:
         start = time.monotonic()
         try:
-            message = self._client.messages.create(
+            message = await self._client.messages.create(
                 model=self._model,
                 max_tokens=2048,
                 system=system_prompt or "",
