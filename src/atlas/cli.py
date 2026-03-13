@@ -112,13 +112,12 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         # Plan the mission
         click.echo(f"[planning] Decomposing goal: {goal_text}")
 
-        skills_desc = "\n".join(
-            f"- {s.skill_id}: {s.description}" for s in registry.list_all()
+        skills_desc = ", ".join(
+            f"{s.skill_id} ({s.description})" for s in registry.list_all()
         )
-        env_state = str(env.get_state())
 
         prompt = PLANNING_PROMPT_TEMPLATE.format(
-            goal=goal_text, skills=skills_desc, env_state=env_state
+            goal=goal_text, skills=skills_desc
         )
 
         try:
