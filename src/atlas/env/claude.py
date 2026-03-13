@@ -43,9 +43,11 @@ class ClaudeCodeBridge:
         if system_prompt:
             cmd.extend(["--system", system_prompt])
 
-        # Strip CLAUDECODE env var so nested claude calls work
+        # Strip all CLAUDE_* env vars so nested claude calls don't
+        # connect back to the parent session's SSE port or interfere
         import os
-        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        env = {k: v for k, v in os.environ.items()
+               if not k.startswith("CLAUDE") and k != "CLAUDECODE"}
 
         start = time.monotonic()
         try:
