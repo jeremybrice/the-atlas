@@ -72,7 +72,7 @@ async def test_execution_loop_triggers_forge_on_missing_skill(tmp_path):
 
     task = Task(description="deploy the app", skill_id="custom.deploy")
     mission = Mission(goal_text="deploy", tasks=[task])
-    result = await loop.execute_mission(mission)
+    await loop.execute_mission(mission)
 
     # Forge should have been called (Claude bridge invoked for skill generation)
     assert mock_claude.oneshot.call_count >= 1
