@@ -1,63 +1,66 @@
 # Mission Brief
 
 **Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-13-atlas-phase1-mvp.md
+**Design Doc:** docs/plans/2026-03-13-atlas-phase2-design.md
+**Implementation Plan:** docs/plans/2026-03-13-atlas-phase2-implementation.md
 **Created:** 2026-03-13
 
 ## Requirements Summary
 
-1. **Shared contracts layer** — types.py (enums, data models, ExecutionContext), errors.py (RetriableError/FatalError hierarchy with correlation_id and cause chaining), interfaces.py (ABCs for MemoryInterface, SkillEngineInterface, EnvironmentInterface, ControlPlaneInterface)
-2. **Control Plane** — PolicyEngine evaluating ProposedAction against 3 autonomy levels (observe/suggest/act-within-bounds) with path blocking; AuditLogger as append-only SQLite; ApprovalWorkflow with terminal prompts and auto-approve/deny modes for testing
-3. **Memory System** — WorkingMemoryStore (LRU dict with max_keys eviction); EpisodicMemoryStore (SQLite with FTS5 full-text search for episodes); ContextAssembler (assembles episodes into token-budgeted ContextBundles prioritizing recency)
-4. **Environment Interface** — FilesystemProvider (read/write/list/search via pathlib); ProcessProvider (async subprocess with timeout); ClaudeCodeBridge (one-shot `claude -p` with JSON response parsing); EnvironmentFacade routing EnvironmentAction to providers; EnvironmentStateModel for workspace snapshots
-5. **Skill Engine** — SkillDefinition/SkillDescriptor models; SkillRegistry with keyword search; InvocationRuntime executing async handlers; 4 seed skills (file.read, file.write, file.search, shell.execute)
-6. **Agent Core** — Task model with status lifecycle; TaskQueue (FIFO); MissionPlanner parsing Claude JSON or numbered-list responses into Task lists; ExecutionLoop running permission check → approval → skill invoke → audit log → episode record
-7. **CLI** — `atlas goal "..."` Click command wiring all components, calling Claude for planning, executing the loop, reporting results; `atlas status` placeholder
+1. **Daemon architecture** — background process with PID file, Unix domain socket, JSON request/response protocol. CLI commands: `atlas daemon start/stop/status`. `atlas goal` forwards to daemon if running, else runs inline.
+2. **Observation Engine** — filesystem watches via `watchdog` with debouncing and pattern matching. Scheduled triggers with interval-based firing. All triggers produce normalized `ObservationEvent` dataclass.
+3. **Reactive Execution** — event router matches events against configured rules (event type, source pattern, cooldown). Priority task queue (not FIFO) with deduplication. Replanning on task failure with error context.
+4. **Skill Forge** — custom skill loader from `~/.atlas/skills/*.py`. Forge pipeline: gap detection, Claude generates skill code, validate/register. All forged skills start at `risk_level="high"`.
+5. **Memory Completion** — procedural memory store (SQLite). Pattern extraction from episodes. Purpose-aware context assembly with ranking strategies per purpose.
+6. **Configuration** — structured config loading from YAML with defaults and user overrides. New sections: daemon, observation, reactive, skills.forge.
 
 ## Key Files
 
-```
-src/atlas/contracts/types.py      — shared enums, data models, ExecutionContext
-src/atlas/contracts/errors.py     — RetriableError/FatalError hierarchy
-src/atlas/contracts/interfaces.py — cross-domain ABCs (source of truth)
-src/atlas/control/policy.py       — PolicyEngine (autonomy levels, path blocking)
-src/atlas/control/audit.py        — AuditLogger (append-only SQLite)
-src/atlas/control/approval.py     — ApprovalWorkflow (terminal + auto modes)
-src/atlas/memory/store.py         — SQLite schema and connection management
-src/atlas/memory/working.py       — WorkingMemoryStore (LRU dict)
-src/atlas/memory/episodic.py      — EpisodicMemoryStore (SQLite + FTS5)
-src/atlas/memory/retrieval.py     — ContextAssembler (token budgeting)
-src/atlas/env/filesystem.py       — FilesystemProvider
-src/atlas/env/process.py          — ProcessProvider (async subprocess)
-src/atlas/env/claude.py           — ClaudeCodeBridge (one-shot + response parsing)
-src/atlas/env/facade.py           — EnvironmentFacade (routes actions to providers)
-src/atlas/env/state.py            — EnvironmentStateModel
-src/atlas/skills/models.py        — SkillDefinition, SkillHandler type
-src/atlas/skills/registry.py      — SkillRegistry (keyword search)
-src/atlas/skills/runtime.py       — InvocationRuntime
-src/atlas/skills/seed.py          — 4 seed skill handlers
-src/atlas/core/tasks.py           — Task model, TaskQueue
-src/atlas/core/missions.py        — Mission, MissionPlanner, parse_task_plan
-src/atlas/core/loop.py            — ExecutionLoop
-src/atlas/cli.py                  — Click CLI (atlas goal, atlas status)
-```
+**Extend existing:**
+- `src/atlas/contracts/types.py` — add ObservationEvent, Procedure, DaemonCommand, DaemonResponse, EventType
+- `src/atlas/core/loop.py` — add replanning on failure, forge integration
+- `src/atlas/core/tasks.py` — upgrade TaskQueue with priority and dedup
+- `src/atlas/cli.py` — add daemon/watch commands, config loading, skill loader
+- `src/atlas/memory/retrieval.py` — purpose-aware ranking and procedure support
+- `config/default.yaml` — expand with Phase 2 settings
+- `pyproject.toml` — add watchdog dependency
+
+**Create new:**
+- `src/atlas/daemon/` — protocol.py, manager.py, loop.py
+- `src/atlas/observation/` — watcher.py, scheduler.py, router.py, engine.py
+- `src/atlas/skills/loader.py`, `src/atlas/skills/forge.py`
+- `src/atlas/memory/procedural.py`, `src/atlas/memory/patterns.py`
+- `src/atlas/config.py`
 
 ## Test Command
 
-```
-pytest tests/ -v
+```bash
+pytest tests/ -v && ruff check src/ tests/
 ```
 
 ## Developer Callouts
 
-None.
+- Python 3.12+ only — use `str | None` syntax, not `Optional`
+- Absolute imports only: `from atlas.x import Y`, never relative across domains
+- All errors must extend `RetriableError` or `FatalError` from `contracts/errors.py`
+- `correlation_id` propagated via `ExecutionContext` through all cross-domain calls
+- Claude bridge is the only mocked component — real SQLite with `tmp_path` fixtures
+- Anthropic SDK switch is done — do not revert to CLI subprocess
 
 ## Success Criteria
 
-1. `pip install -e ".[dev]"` succeeds and `atlas` CLI is on PATH
-2. `atlas --help` shows `goal` and `status` commands
-3. `atlas goal "..."` calls Claude Code one-shot, parses the plan, executes tasks sequentially via seed skills, checks permissions, logs audit entries, records episodes
-4. All unit tests pass: PolicyEngine, ContextAssembler, TaskQueue, Claude response parsing, error hierarchy
-5. Integration test passes: ExecutionLoop wires Core + Skills + Environment + Control + Memory with real SQLite and temp files
-6. E2E test passes: full goal execution with mocked Claude response, verifying file modification, episode recording, and audit entries
-7. `pytest tests/ -v` — full suite green
+1. `atlas daemon start` launches background process, `status` reports state, `stop` shuts down
+2. Filesystem watcher detects changes and emits debounced ObservationEvents
+3. Scheduled triggers fire at configured intervals
+4. Event router matches events to rules with cooldown enforcement
+5. Priority task queue orders by priority and deduplicates
+6. Failed tasks trigger replanning with error context (up to 2 retries)
+7. Custom skills load from `~/.atlas/skills/*.py` on startup
+8. Skill Forge generates, validates, and registers new skills
+9. Procedural memory stores/retrieves/updates procedures with success rates
+10. Pattern extraction identifies repeated sequences and recurring failures
+11. Context assembler uses purpose-aware ranking
+12. Configuration loads from YAML with defaults and overrides
+13. All existing 79 tests continue to pass
+14. All new code has corresponding tests
+15. `ruff check src/ tests/` passes

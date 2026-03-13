@@ -1,93 +1,97 @@
-"""Claude Code Bridge — manages interactions with the Claude Code CLI."""
+"""Claude Code Bridge — calls the Anthropic API via the Python SDK."""
 
 from __future__ import annotations
 
-import asyncio
 import json
+import logging
 import re
 import time
+
+import anthropic
 
 from atlas.contracts.errors import ClaudeCodeError, ClaudeCodeUnavailableError
 from atlas.contracts.types import ClaudeResponse
 
+logger = logging.getLogger(__name__)
 
-def parse_claude_response(raw: str) -> ClaudeResponse:
-    """Extract structured output from Claude Code CLI response text."""
+DEFAULT_MODEL = "claude-sonnet-4-20250514"
+
+
+def parse_response_text(text: str) -> ClaudeResponse:
+    """Parse the text content from a Claude API response.
+
+    Tries to extract structured JSON from the text.
+    """
     parsed = None
-    # Look for ```json ... ``` blocks
-    pattern = r"```json\s*\n(.*?)\n```"
-    match = re.search(pattern, raw, re.DOTALL)
+
+    # 1. ```json ... ``` blocks
+    match = re.search(r"```(?:json)?\s*\n(.*?)\n```", text, re.DOTALL)
     if match:
         try:
             parsed = json.loads(match.group(1))
         except json.JSONDecodeError:
-            parsed = None
+            pass
 
-    return ClaudeResponse(content=raw, parsed_output=parsed)
+    # 2. Raw JSON (entire content)
+    if parsed is None:
+        try:
+            parsed = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return ClaudeResponse(content=text, parsed_output=parsed)
 
 
 class ClaudeCodeBridge:
-    """Manages Claude Code CLI subprocess calls. Phase 1: one-shot only."""
+    """Calls the Anthropic Messages API. Phase 1: one-shot only."""
 
-    def __init__(self, timeout: int = 120):
+    def __init__(self, model: str = DEFAULT_MODEL, timeout: int = 120):
+        self._model = model
         self._timeout = timeout
+        try:
+            self._client = anthropic.Anthropic()
+        except anthropic.AuthenticationError as e:
+            raise ClaudeCodeUnavailableError(
+                "ANTHROPIC_API_KEY not set or invalid."
+            ) from e
 
     async def oneshot(
         self, prompt: str, system_prompt: str | None = None
     ) -> ClaudeResponse:
-        cmd = [
-            "claude", "-p", prompt,
-            "--output-format", "text",
-            "--disallowedTools", "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch",
-        ]
-        if system_prompt:
-            cmd.extend(["--system", system_prompt])
-
-        # Strip all CLAUDE_* env vars so nested claude calls don't
-        # connect back to the parent session's SSE port or interfere
-        import os
-        env = {k: v for k, v in os.environ.items()
-               if not k.startswith("CLAUDE") and k != "CLAUDECODE"}
-
         start = time.monotonic()
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
+            message = self._client.messages.create(
+                model=self._model,
+                max_tokens=2048,
+                system=system_prompt or "",
+                messages=[{"role": "user", "content": prompt}],
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=self._timeout
-            )
-        except FileNotFoundError:
+        except anthropic.AuthenticationError as e:
             raise ClaudeCodeUnavailableError(
-                "Claude Code CLI not found. Is 'claude' on PATH?"
-            )
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
+                "ANTHROPIC_API_KEY not set or invalid."
+            ) from e
+        except anthropic.APITimeoutError as e:
             raise ClaudeCodeError(
-                f"Claude Code CLI timed out after {self._timeout}s"
-            )
+                f"Anthropic API timed out after {self._timeout}s"
+            ) from e
+        except anthropic.APIError as e:
+            raise ClaudeCodeError(f"Anthropic API error: {e}") from e
 
         elapsed = int((time.monotonic() - start) * 1000)
-        stderr_text = stderr.decode(errors="replace").strip()
 
-        if proc.returncode != 0:
-            raise ClaudeCodeError(
-                f"Claude Code CLI exited with code {proc.returncode}: {stderr_text}"
+        # Extract text from the response
+        text = ""
+        for block in message.content:
+            if block.type == "text":
+                text += block.text
+
+        if not text.strip():
+            logger.warning(
+                "Claude returned empty text. model=%s, stop_reason=%s, elapsed=%dms",
+                message.model, message.stop_reason, elapsed,
             )
 
-        raw_output = stdout.decode(errors="replace")
-
-        # Log diagnostics for debugging empty responses
-        if not raw_output.strip():
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Claude returned empty stdout. returncode={proc.returncode}, "
-                          f"stderr={stderr_text!r}, elapsed={elapsed}ms")
-
-        response = parse_claude_response(raw_output)
+        response = parse_response_text(text)
         response.execution_time_ms = elapsed
+        response.tokens_used = message.usage.input_tokens + message.usage.output_tokens
         return response

@@ -50,3 +50,27 @@ def test_task_queue_all_tasks():
     queue.enqueue(Task(description="a"))
     queue.enqueue(Task(description="b"))
     assert len(queue.all_tasks()) == 2
+
+
+def test_priority_queue_ordering():
+    q = TaskQueue()
+    low = Task(description="low priority", priority=10)
+    high = Task(description="high priority", priority=1)
+    q.enqueue(low)
+    q.enqueue(high)
+    next_task = q.get_next()
+    assert next_task.description == "high priority"
+
+
+def test_task_deduplication():
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    q.enqueue(Task(description="run tests again", dedup_key="tests"))
+    assert q.size() == 1  # second one was dropped
+
+
+def test_task_dedup_different_keys():
+    q = TaskQueue()
+    q.enqueue(Task(description="run tests", dedup_key="tests"))
+    q.enqueue(Task(description="run lint", dedup_key="lint"))
+    assert q.size() == 2

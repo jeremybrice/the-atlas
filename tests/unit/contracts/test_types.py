@@ -3,6 +3,11 @@ from atlas.contracts.types import (
     PolicyDecision,
     AutonomyLevel,
     TaskStatus,
+    ObservationEvent,
+    EventType,
+    Procedure,
+    DaemonCommand,
+    DaemonResponse,
 )
 
 
@@ -40,3 +45,32 @@ def test_task_status_terminal_states():
         assert s.is_terminal()
     for s in non_terminal:
         assert not s.is_terminal()
+
+
+
+def test_observation_event_creation():
+    event = ObservationEvent(
+        event_type=EventType.FILESYSTEM,
+        source="watch:src/**/*.py",
+        payload={"path": "src/main.py", "action": "modified"},
+    )
+    assert event.event_id  # auto-generated
+    assert event.priority == 5
+
+
+def test_procedure_creation():
+    proc = Procedure(
+        name="run-tests",
+        description="Run pytest after source change",
+        trigger_pattern="filesystem:src/**/*.py",
+        steps=[{"skill": "shell.execute", "params": {"command": "pytest"}}],
+    )
+    assert proc.procedure_id  # auto-generated
+    assert proc.success_rate == 0.0
+
+
+def test_daemon_command_and_response():
+    cmd = DaemonCommand(command="goal", payload={"goal_text": "do thing"})
+    assert cmd.command_id  # auto-generated
+    resp = DaemonResponse(command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"})
+    assert resp.status == "ok"
