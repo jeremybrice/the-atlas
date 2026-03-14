@@ -129,3 +129,19 @@ def test_get_autonomy_level_returns_override_when_set():
     )
     assert engine.get_autonomy_level("skills", skill="file.read") == AutonomyLevel.ACT_WITHIN_BOUNDS
     assert engine.get_autonomy_level("skills", skill="shell.execute") == AutonomyLevel.SUGGEST
+
+
+def test_evaluate_returns_deny_for_unknown_autonomy_level():
+    """PolicyEngine should return DENY (fail-safe) for unrecognized autonomy levels."""
+    engine = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
+    action = ProposedAction(
+        action_type="test",
+        domain="test",
+        description="test action",
+        risk_level=RiskLevel.LOW,
+        skill_id="bad.skill",
+    )
+    # Inject a bad override to trigger the default case
+    engine._skill_overrides["bad.skill"] = 999
+    result = engine.evaluate(action)
+    assert result == PolicyDecision.DENY

@@ -13,7 +13,7 @@ from atlas.contracts.types import (
 
 
 class PolicyEngine:
-    """Stateless policy evaluator. Every action passes through evaluate()."""
+    """Policy evaluator with per-skill autonomy overrides. Every action passes through evaluate()."""
 
     def __init__(
         self,
@@ -42,6 +42,8 @@ class PolicyEngine:
                 return PolicyDecision.REQUIRE_APPROVAL
             case AutonomyLevel.ACT_WITHIN_BOUNDS:
                 return self._evaluate_bounded(action)
+            case _:
+                return PolicyDecision.DENY
 
     def set_skill_override(self, skill_id: str, level: AutonomyLevel) -> None:
         self._skill_overrides[skill_id] = level
@@ -63,6 +65,8 @@ class PolicyEngine:
             case RiskLevel.HIGH:
                 return PolicyDecision.REQUIRE_APPROVAL
             case RiskLevel.CRITICAL:
+                return PolicyDecision.DENY
+            case _:
                 return PolicyDecision.DENY
 
     def _is_blocked_path(self, action: ProposedAction) -> bool:
