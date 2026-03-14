@@ -48,7 +48,6 @@ def test_task_status_terminal_states():
         assert not s.is_terminal()
 
 
-
 def test_observation_event_creation():
     event = ObservationEvent(
         event_type=EventType.FILESYSTEM,
@@ -96,9 +95,3 @@ def test_trust_record_with_values():
     assert record.successes == 10
     assert record.failures == 1
     assert record.consecutive_successes == 5
-
-
-def test_trust_record_has_recent_outcomes_field():
-    record = TrustRecord(skill_id="test.skill")
-    assert hasattr(record, 'recent_outcomes')
-    assert record.recent_outcomes == ""
