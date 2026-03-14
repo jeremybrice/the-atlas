@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from atlas.contracts.errors import CredentialError
+from atlas.contracts.types import ExecutionContext
 from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ class CredentialVault:
         key: str,
         value: str,
         expires_at: str | None = None,
+        ctx: ExecutionContext | None = None,
     ) -> None:
         encrypted = self._fernet.encrypt(value.encode())
         now = datetime.now(timezone.utc).isoformat()
@@ -56,7 +58,7 @@ class CredentialVault:
         await self._db.db.commit()
         logger.info("Stored credential: %s/%s", service, key)
 
-    async def get(self, service: str, key: str) -> str | None:
+    async def get(self, service: str, key: str, ctx: ExecutionContext | None = None) -> str | None:
         cursor = await self._db.db.execute(
             "SELECT encrypted_value FROM credentials WHERE service=? AND key=?",
             (service, key),
@@ -72,7 +74,7 @@ class CredentialVault:
                 cause=e,
             )
 
-    async def delete(self, service: str, key: str) -> None:
+    async def delete(self, service: str, key: str, ctx: ExecutionContext | None = None) -> None:
         await self._db.db.execute(
             "DELETE FROM credentials WHERE service=? AND key=?",
             (service, key),
@@ -80,14 +82,14 @@ class CredentialVault:
         await self._db.db.commit()
         logger.info("Deleted credential: %s/%s", service, key)
 
-    async def list_services(self) -> list[str]:
+    async def list_services(self, ctx: ExecutionContext | None = None) -> list[str]:
         cursor = await self._db.db.execute(
             "SELECT DISTINCT service FROM credentials ORDER BY service"
         )
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
-    async def list_keys(self, service: str) -> list[str]:
+    async def list_keys(self, service: str, ctx: ExecutionContext | None = None) -> list[str]:
         cursor = await self._db.db.execute(
             "SELECT key FROM credentials WHERE service=? ORDER BY key",
             (service,),

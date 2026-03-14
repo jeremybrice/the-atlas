@@ -1,5 +1,6 @@
 import pytest
 from atlas.contracts.errors import CredentialError
+from atlas.contracts.types import ExecutionContext
 from atlas.integrations.vault import CredentialVault
 
 
@@ -72,3 +73,36 @@ async def test_get_with_wrong_passphrase_raises_credential_error(db):
     vault2 = CredentialVault(db=db, passphrase="wrong-pass")
     with pytest.raises(CredentialError, match="Decryption failed"):
         await vault2.get("github", "token")
+
+
+async def test_store_and_get_accepts_execution_context(db):
+    vault = CredentialVault(db=db, passphrase="test-passphrase")
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    await vault.store("github", "token", "ghp_abc123", ctx=ctx)
+    result = await vault.get("github", "token", ctx=ctx)
+    assert result == "ghp_abc123"
+
+
+async def test_delete_accepts_execution_context(db):
+    vault = CredentialVault(db=db, passphrase="test-passphrase")
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    await vault.store("github", "token", "ghp_abc123", ctx=ctx)
+    await vault.delete("github", "token", ctx=ctx)
+    result = await vault.get("github", "token", ctx=ctx)
+    assert result is None
+
+
+async def test_list_services_accepts_execution_context(db):
+    vault = CredentialVault(db=db, passphrase="test-passphrase")
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    await vault.store("github", "token", "ghp_abc", ctx=ctx)
+    services = await vault.list_services(ctx=ctx)
+    assert "github" in services
+
+
+async def test_list_keys_accepts_execution_context(db):
+    vault = CredentialVault(db=db, passphrase="test-passphrase")
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    await vault.store("github", "token", "ghp_abc", ctx=ctx)
+    keys = await vault.list_keys("github", ctx=ctx)
+    assert "token" in keys

@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from atlas.contracts.types import AutonomyLevel, TrustRecord
+from atlas.contracts.types import AutonomyLevel, ExecutionContext, TrustRecord
 from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class TrustTracker:
         self._demotion_failure_count = demotion_failure_count
         self._demotion_window_size = demotion_window_size
 
-    async def record_outcome(self, skill_id: str, success: bool) -> TrustOutcome:
+    async def record_outcome(self, skill_id: str, success: bool, ctx: ExecutionContext | None = None) -> TrustOutcome:
         record = await self.get_record(skill_id)
         recent = await self._load_recent(skill_id)
 
@@ -86,7 +86,7 @@ class TrustTracker:
         outcomes = json.loads(row[0])
         return deque(outcomes, maxlen=self._demotion_window_size)
 
-    async def get_record(self, skill_id: str) -> TrustRecord:
+    async def get_record(self, skill_id: str, ctx: ExecutionContext | None = None) -> TrustRecord:
         cursor = await self._db.db.execute(
             "SELECT skill_id, successes, failures, consecutive_successes, "
             "total_invocations, autonomy_override, last_outcome, updated_at "
@@ -111,7 +111,7 @@ class TrustTracker:
             updated_at=row[7],
         )
 
-    async def set_autonomy_override(self, skill_id: str, level: AutonomyLevel) -> None:
+    async def set_autonomy_override(self, skill_id: str, level: AutonomyLevel, ctx: ExecutionContext | None = None) -> None:
         record = await self.get_record(skill_id)
         recent = await self._load_recent(skill_id)
         record.autonomy_override = level
@@ -119,7 +119,7 @@ class TrustTracker:
         await self._save_record(record, recent)
         logger.info("Trust override set: %s -> %s", skill_id, level.name)
 
-    async def get_autonomy_override(self, skill_id: str) -> AutonomyLevel | None:
+    async def get_autonomy_override(self, skill_id: str, ctx: ExecutionContext | None = None) -> AutonomyLevel | None:
         record = await self.get_record(skill_id)
         if record.total_invocations == 0 and record.autonomy_override is None:
             return None

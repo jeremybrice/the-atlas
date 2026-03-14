@@ -1,6 +1,6 @@
 import pytest
 from atlas.control.trust import TrustTracker
-from atlas.contracts.types import AutonomyLevel
+from atlas.contracts.types import AutonomyLevel, ExecutionContext
 
 
 @pytest.fixture
@@ -96,3 +96,25 @@ async def test_count_recent_failures_ignores_old_failures(db):
     # One new failure should NOT trigger demotion (only 1 recent failure, threshold is 3)
     result = await tracker.record_outcome("file.read", success=False)
     assert result.should_demote is False
+
+
+async def test_record_outcome_accepts_execution_context(db):
+    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    result = await tracker.record_outcome("file.read", success=True, ctx=ctx)
+    assert result.skill_id == "file.read"
+
+
+async def test_get_record_accepts_execution_context(db):
+    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    record = await tracker.get_record("file.read", ctx=ctx)
+    assert record.skill_id == "file.read"
+
+
+async def test_set_autonomy_override_accepts_execution_context(db):
+    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    await tracker.set_autonomy_override("file.read", AutonomyLevel.ACT_WITHIN_BOUNDS, ctx=ctx)
+    override = await tracker.get_autonomy_override("file.read", ctx=ctx)
+    assert override == AutonomyLevel.ACT_WITHIN_BOUNDS
