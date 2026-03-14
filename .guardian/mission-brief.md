@@ -1,35 +1,31 @@
 # Mission Brief
 
 **Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-13-phase3-stage-a.md
-**Created:** 2026-03-13
+**Design Doc:** docs/plans/2026-03-13-phase3-stage-b.md
+**Created:** 2026-03-14
 
 ## Requirements Summary
 
-1. **TrustRecord dataclass + TrustConfig** — Add `TrustRecord` to `contracts/types.py`, `TrustConfig` to `config.py`, trust section to `default.yaml`
-2. **trust_records SQLite table** — Add table to `DatabaseStore._create_tables()` in `memory/store.py`
-3. **TrustTracker core logic** — New `control/trust.py` with outcome recording, escalation suggestion (N consecutive successes), auto-demotion (failure spike), SQLite persistence
-4. **PolicyEngine per-skill overrides** — Extend `control/policy.py` to accept `skill_overrides` dict, resolve per-skill autonomy before evaluating risk
-5. **credentials SQLite table** — Add table to `DatabaseStore._create_tables()`
-6. **CredentialVault** — New `integrations/vault.py` with Fernet encryption, PBKDF2 key derivation, CRUD API (store/get/delete/list)
-7. **Vault CLI commands** — Add `atlas vault set/list/delete` commands to `cli.py`
-8. **MCPConfig + EventType.WEBHOOK** — Add `MCPConfig` to `config.py`, `WEBHOOK` to `EventType` enum, mcp section to `default.yaml`
-9. **MCPBridge + MCPSkillAdapter** — New `integrations/mcp.py` that connects to MCP servers, wraps tools as ATLAS skills with `risk_level=HIGH`, registers in `SkillRegistry`
-10. **cryptography dependency** — Add to `pyproject.toml`
-11. **Integration test** — Trust + Policy + Vault wired together end-to-end in `tests/integration/test_trust_vault_integration.py`
-12. **Full suite validation** — All tests pass, ruff clean
+1. **WebhookConfig + aiohttp dependency** — Add `WebhookConfig` dataclass to `config.py`, aiohttp to `pyproject.toml`, webhook section to `default.yaml`
+2. **entity_mappings SQLite table** — Add table to `DatabaseStore._create_tables()` for bidirectional ATLAS↔external ID mapping
+3. **EntityMapper** — New `integrations/entity_mapper.py` with link/unlink/get_atlas_id/get_external_id CRUD
+4. **ConnectorABC base class** — New `integrations/connector.py` with abstract authenticate/handle_event/execute_action + rate limiting
+5. **GitHubConnector** — New `integrations/connectors/github.py` implementing ConnectorABC with event parser, comment/issue API actions
+6. **EventBridge** — New `integrations/event_bridge.py` for normalizing webhook payloads into ObservationEvents with HMAC signature verification
+7. **WebhookServer** — New `integrations/webhook.py` aiohttp server for receiving HTTP webhook payloads and routing through EventBridge
 
 ## Key Files
 
-- `src/atlas/contracts/types.py` — Shared types, add TrustRecord and EventType.WEBHOOK
-- `src/atlas/config.py` — Config dataclasses, add TrustConfig and MCPConfig
-- `src/atlas/control/policy.py` — Policy engine, extend with skill_overrides
-- `src/atlas/memory/store.py` — DB schema, add trust_records and credentials tables
-- `src/atlas/cli.py` — CLI commands, add vault group
-- `src/atlas/skills/registry.py` — Skill registry, consumed by MCPBridge
-- `src/atlas/contracts/errors.py` — Error hierarchy (reference)
-- `pyproject.toml` — Dependencies
-- `config/default.yaml` — Default configuration
+- `src/atlas/integrations/connector.py` — ConnectorABC
+- `src/atlas/integrations/entity_mapper.py` — EntityMapper
+- `src/atlas/integrations/event_bridge.py` — EventBridge
+- `src/atlas/integrations/webhook.py` — WebhookServer
+- `src/atlas/integrations/dashboard.py` — DashboardServer
+- `src/atlas/integrations/connectors/github.py` — GitHubConnector
+- `src/atlas/config.py` — WebhookConfig
+- `src/atlas/memory/store.py` — entity_mappings table
+- `src/atlas/daemon/loop.py` — HTTP app runner support
+- `src/atlas/cli.py` — Webhook + dashboard wiring in daemon
 
 ## Test Command
 
@@ -37,7 +33,7 @@
 
 ## Developer Callouts
 
-None specified. Follow CLAUDE.md conventions:
+Follow CLAUDE.md conventions:
 - Python 3.12+ with `str | None` syntax
 - No `from __future__ import annotations` in new files
 - src layout imports: `from atlas.x import Y`
@@ -46,12 +42,12 @@ None specified. Follow CLAUDE.md conventions:
 
 ## Success Criteria
 
-- All 12 tasks from the implementation plan are complete
-- `TrustTracker` records outcomes and correctly triggers escalation/demotion suggestions
-- `PolicyEngine` respects per-skill autonomy overrides
-- `CredentialVault` encrypts/decrypts credentials with Fernet, persists to SQLite
-- `MCPBridge` registers MCP tools as ATLAS skills
-- CLI `atlas vault set/list/delete` commands work
+- All 11 tasks from the implementation plan are complete
+- `WebhookServer` receives HTTP webhooks and routes through `EventBridge` to `ObservationEngine`
+- `GitHubConnector` implements `ConnectorABC` with event parsing and GitHub API actions
+- `DashboardServer` serves REST endpoints reading from existing SQLite stores
+- `EntityMapper` provides bidirectional ATLAS↔external ID mapping
+- `DaemonLoop` starts HTTP server alongside Unix socket server
 - All new and existing tests pass (`pytest tests/ -v`)
 - Lint clean (`ruff check src/ tests/`)
-- Integration test demonstrates trust + policy + vault working together
+- Integration test demonstrates webhook→event pipeline end-to-end

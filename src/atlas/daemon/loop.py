@@ -19,6 +19,9 @@ class DaemonLoop:
         goal_executor: Callable[..., Coroutine[Any, Any, dict]] | None = None,
         mcp_bridge: Any | None = None,
         mcp_servers: list[dict] | None = None,
+        http_app: Any | None = None,
+        http_host: str = "127.0.0.1",
+        http_port: int = 8484,
     ):
         self._socket_path = socket_path
         self._pid_file = PidFile(pid_path)
@@ -28,6 +31,10 @@ class DaemonLoop:
         self._server: DaemonSocketServer | None = None
         self._running = False
         self._start_time = 0.0
+        self._http_app = http_app
+        self._http_host = http_host
+        self._http_port = http_port
+        self._http_runner = None
 
     async def start(self) -> None:
         self._start_time = time.monotonic()
@@ -41,11 +48,22 @@ class DaemonLoop:
         await self._server.start()
         logger.info("Daemon started. PID=%d socket=%s", os.getpid(), self._socket_path)
 
+        # Start HTTP server if configured
+        if self._http_app:
+            from aiohttp import web
+            self._http_runner = web.AppRunner(self._http_app)
+            await self._http_runner.setup()
+            site = web.TCPSite(self._http_runner, self._http_host, self._http_port)
+            await site.start()
+            logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
+
         while self._running:
             await asyncio.sleep(0.1)
 
         # Disconnect MCP servers on shutdown
         self._disconnect_mcp_servers()
+        if self._http_runner:
+            await self._http_runner.cleanup()
         await self._server.stop()
         self._pid_file.remove()
         logger.info("Daemon stopped.")

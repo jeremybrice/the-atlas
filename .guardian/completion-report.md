@@ -1,105 +1,79 @@
-# Completion Report
+# Completion Report: Phase 3 Stage B
 
-**Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-13-phase3-stage-a.md
-**Completed:** 2026-03-13
-**Branch:** phase2-daemon-reactive-forge
+**Mission:** GitHub Connector + Webhook Ingestion + Dashboard API
+**Branch:** `phase3-stage-b-webhook-dashboard`
+**Date:** 2026-03-14
 
 ## Summary
 
-Implemented Phase 3 Stage A: Trust Escalation, MCP Bridge, and Credential Vault. Three independent foundational components were built and integrated into the existing ATLAS infrastructure. TrustTracker extends the PolicyEngine with per-skill autonomy overrides persisted in SQLite. CredentialVault provides Fernet-encrypted credential storage with PBKDF2 key derivation. MCPBridge connects to configured MCP servers and auto-registers their tools as ATLAS skills. 165 tests pass. Ruff clean.
+Phase 3 Stage B adds three major capabilities to ATLAS:
 
-## Requirements Mapping
+1. **GitHub Connector** — First external integration implementing `ConnectorABC`, with event parsing (webhooks → ObservationEvents) and outbound API actions (comment, create issue, list pulls)
+2. **Webhook HTTP Ingestion** — `WebhookServer` (aiohttp) receives HTTP POST payloads from external services, normalizes them via `EventBridge` into the existing reactive pipeline
+3. **Dashboard API** — `DashboardServer` mounts REST endpoints (`/api/status`, `/api/missions`, `/api/skills`, `/api/audit`, `/api/memory/stats`, `/api/goal`) on the same aiohttp app for monitoring and control
 
-| Requirement | Status | Implementation | Notes |
-|-------------|--------|----------------|-------|
-| TrustRecord dataclass | Done | `src/atlas/contracts/types.py:277-287` | |
-| TrustConfig | Done | `src/atlas/config.py:24-28` | Wired into AtlasConfig and _SECTION_MAP |
-| trust_records SQLite table | Done | `src/atlas/memory/store.py:99-108` | |
-| TrustTracker core logic | Done | `src/atlas/control/trust.py` | TrustOutcome, record_outcome, escalation/demotion |
-| PolicyEngine per-skill overrides | Done | `src/atlas/control/policy.py` | skill_overrides dict, set/remove methods |
-| credentials SQLite table | Done | `src/atlas/memory/store.py:110-118` | Composite PK (service, key) |
-| CredentialVault | Done | `src/atlas/integrations/vault.py` | Fernet + PBKDF2, CRUD API |
-| Vault CLI commands | Done | `src/atlas/cli.py:460-538` | vault set/list/delete |
-| MCPConfig + EventType.WEBHOOK | Done | `src/atlas/config.py:48-58`, `types.py:234` | |
-| MCPBridge + MCPSkillAdapter | Done | `src/atlas/integrations/mcp.py` | Auto-registers with risk_level=HIGH |
-| cryptography dependency | Done | `pyproject.toml` | cryptography>=43.0 |
-| Integration test | Done | `tests/integration/test_trust_vault_integration.py` | 4 end-to-end tests |
+All three components share a single aiohttp web application bound to `127.0.0.1:8484`, integrated into the daemon lifecycle.
 
-## Guardian Results
+## Tasks Completed
 
-### Spec Guardian
-- Issues caught: 0
-- All resolved: Yes
-- Details: Both reviews (Tasks 13, 14) found the implementation closely follows the spec with no must-fix deviations.
+| # | Task | Status |
+|---|------|--------|
+| 1 | Add aiohttp dependency and WebhookConfig | Done |
+| 2 | Add entity_mappings table to DatabaseStore | Done |
+| 3 | Implement EntityMapper | Done |
+| 4 | Implement ConnectorABC base class | Done |
+| 5 | Implement EventBridge | Done |
+| 6 | Implement WebhookServer | Done |
+| 7 | Implement GitHubConnector | Done |
+| 8 | Implement DashboardServer | Done |
+| 9 | Wire webhook + dashboard into daemon lifecycle | Done |
+| 10 | Integration test — webhook pipeline | Done |
+| 11 | Full test suite + lint validation | Done |
 
-### Test Guardian
-- Issues caught: 0
-- All resolved: Yes
-- Test command: `pytest tests/ -v`
-- Final result: PASS (165 tests)
-- Details: All new code has corresponding tests. TDD followed throughout.
+## New Files Created (15)
 
-### Convention Guardian
-- Issues caught: 2
-- All resolved: Yes
-- Details: E402 (mid-file import in test_types.py) and F401 (unused import in test_trust.py) — both fixed in Task 12.
+**Source (6):**
+- `src/atlas/integrations/connector.py` — ConnectorABC base class with rate limiting
+- `src/atlas/integrations/entity_mapper.py` — Bidirectional ATLAS↔external ID mapping
+- `src/atlas/integrations/event_bridge.py` — Webhook payload normalization + HMAC verification
+- `src/atlas/integrations/webhook.py` — WebhookServer (aiohttp HTTP endpoint)
+- `src/atlas/integrations/dashboard.py` — DashboardServer (REST monitoring API)
+- `src/atlas/integrations/connectors/github.py` — GitHubConnector (API + events)
 
-### Integration Guardian
-- Issues caught: 0
-- All resolved: Yes
-- Full suite result: PASS (165 tests, 6.96s)
-- Details: No regressions. All pre-existing tests continue to pass.
+**Tests (9):**
+- `tests/unit/integrations/test_connector.py` (5 tests)
+- `tests/unit/integrations/test_entity_mapper.py` (6 tests)
+- `tests/unit/integrations/test_event_bridge.py` (5 tests)
+- `tests/unit/integrations/test_webhook.py` (4 tests)
+- `tests/unit/integrations/test_github.py` (7 tests)
+- `tests/unit/integrations/test_dashboard.py` (8 tests)
+- `tests/unit/integrations/test_daemon_wiring.py` (1 test)
+- `tests/unit/memory/test_store_entity.py` (2 tests)
+- `tests/integration/test_webhook_pipeline.py` (3 tests)
 
-### Context Guardian
-- No decisions required divergence from the design doc.
+## Files Modified (7)
 
-## Deviations from Spec
-
-1. **`test_mcp.py` uses `_make_tool` helper instead of raw MagicMock** — Good deviation. `MagicMock(name=...)` sets the mock's internal name, not an attribute. The helper avoids this pitfall. (Found by reviewer)
-2. **`MCPConfig` field ordering in `AtlasConfig`** — Cosmetic difference in field ordering. No functional impact. (Found by reviewer)
-3. **`_count_recent_failures` approximation** — Both branches return total lifetime failure count rather than a true sliding window. The spec's own reference code acknowledges this as an MVP limitation. (Found by reviewer)
+- `pyproject.toml` — Added `aiohttp>=3.10`, `pytest-aiohttp>=1.0`
+- `src/atlas/config.py` — Added `WebhookConfig` dataclass, wired into `AtlasConfig`
+- `config/default.yaml` — Added `webhook` section with defaults
+- `src/atlas/memory/store.py` — Added `entity_mappings` table + index
+- `src/atlas/daemon/loop.py` — Added `http_app`/`http_host`/`http_port` params, aiohttp AppRunner lifecycle
+- `src/atlas/cli.py` — Wired EventBridge, WebhookServer, DashboardServer into `_run_daemon`
+- `tests/unit/test_config.py` — Added `test_webhook_config_defaults`
 
 ## Test Results
 
-```
-165 passed in 6.96s
-ruff check: All checks passed!
-```
+- **Total tests:** 226
+- **All passing:** Yes
+- **New tests added:** 41
+- **Baseline preserved:** 185 existing tests still pass
+- **Lint:** `ruff check src/ tests/` — All checks passed
 
-## Key Decisions
+## Architecture Decisions
 
-No significant deviations from the design doc were required. All architectural decisions were made during the brainstorming/design phase:
-- Credential Vault uses passphrase-based key derivation (PBKDF2) rather than OS keychain for the encryption key itself — keyring dependency deferred until needed
-- MCP tools registered with risk_level=HIGH by default — matches spec's safety-first approach
-- Trust demotion is automatic (no approval needed), escalation requires approval — safety bias per spec
-
-## New Files Created
-
-```
-src/atlas/control/trust.py           — TrustTracker + TrustOutcome
-src/atlas/integrations/vault.py      — CredentialVault with Fernet encryption
-src/atlas/integrations/mcp.py        — MCPBridge + MCPSkillAdapter
-tests/unit/control/test_trust.py     — 8 tests
-tests/unit/integrations/__init__.py
-tests/unit/integrations/test_vault.py — 8 tests
-tests/unit/integrations/test_mcp.py  — 5 tests
-tests/unit/memory/test_store_trust.py — 2 tests
-tests/unit/memory/test_store_vault.py — 2 tests
-tests/unit/test_cli_vault.py         — 2 tests
-tests/integration/test_trust_vault_integration.py — 4 tests
-```
-
-## Files Modified
-
-```
-src/atlas/contracts/types.py  — Added TrustRecord, EventType.WEBHOOK
-src/atlas/config.py           — Added TrustConfig, MCPConfig, MCPServerEntry
-src/atlas/control/policy.py   — Added skill_overrides support
-src/atlas/memory/store.py     — Added trust_records + credentials tables
-src/atlas/cli.py              — Added vault CLI commands
-config/default.yaml           — Added trust + mcp sections
-pyproject.toml                — Added cryptography dependency
-tests/unit/contracts/test_types.py — Added TrustRecord tests
-tests/unit/test_config.py     — Added MCPConfig + EventType tests
-```
+1. **Single aiohttp app** — Webhook and Dashboard share one web.Application, avoiding port proliferation
+2. **EventBridge pattern** — Service-specific parsers registered at startup; WebhookServer is service-agnostic
+3. **ConnectorABC with rate limiting** — Built-in sliding-window rate limiter prevents API abuse
+4. **HMAC verification** — GitHub webhook signatures verified using `hmac.compare_digest` (timing-safe)
+5. **entity_mappings table** — Composite PK `(service, external_id)` with reverse-lookup index on `(atlas_type, atlas_id)`
+6. **Dashboard reads existing stores** — No new data layer; queries missions/episodes/audit tables directly

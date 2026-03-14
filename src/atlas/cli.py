@@ -370,12 +370,41 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     await obs_engine.start()
 
+    # Set up webhook + dashboard HTTP server
+    from atlas.integrations.event_bridge import EventBridge
+    from atlas.integrations.webhook import WebhookServer
+    from atlas.integrations.dashboard import DashboardServer
+
+    event_bridge = EventBridge()
+    webhook_server = WebhookServer(
+        event_bridge=event_bridge,
+        event_callback=obs_engine._on_event,
+        webhook_path_prefix=config.webhook.webhook_path_prefix,
+    )
+    dashboard_server = DashboardServer(
+        db=db,
+        audit=audit,
+        registry=registry,
+        goal_handler=goal_executor,
+    )
+
+    # Build combined aiohttp app
+    http_app = webhook_server.create_app()
+    dashboard_app = dashboard_server.create_app()
+    # Merge dashboard routes into webhook app
+    for resource in dashboard_app.router.resources():
+        for route in resource:
+            http_app.router.add_route(route.method, resource.canonical, route.handler)
+
     daemon_loop = DaemonLoop(
         socket_path=socket_path,
         pid_path=pid_path,
         goal_executor=goal_executor,
         mcp_bridge=mcp_bridge,
         mcp_servers=config.mcp.servers,
+        http_app=http_app,
+        http_host=config.webhook.host,
+        http_port=config.webhook.port,
     )
 
     try:

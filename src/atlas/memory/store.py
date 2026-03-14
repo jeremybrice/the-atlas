@@ -122,5 +122,18 @@ class DatabaseStore:
                 key TEXT PRIMARY KEY,
                 value BLOB NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS entity_mappings (
+                service TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                atlas_type TEXT NOT NULL,
+                atlas_id TEXT NOT NULL,
+                metadata TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (service, external_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_entity_atlas
+                ON entity_mappings(atlas_type, atlas_id);
         """)
         await self._db.commit()
