@@ -54,8 +54,12 @@ class MCPBridge:
 
     def register_tools(self, session: Any, tools: list, server_name: str) -> list[str]:
         """Register MCP tools as ATLAS skills. Returns list of registered skill IDs."""
+        # Unregister existing tools for this server first (idempotent on reconnect)
+        if server_name in self._server_skills:
+            self.unregister_server(server_name)
+
         registered = []
-        self._server_skills.setdefault(server_name, [])
+        self._server_skills[server_name] = []
 
         for tool in tools:
             adapter = MCPSkillAdapter(

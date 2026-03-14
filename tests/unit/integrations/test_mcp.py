@@ -92,3 +92,30 @@ def test_mcp_bridge_unregister_server(registry):
 
     bridge.unregister_server("test-server")
     assert len(registry.list_all()) == 0
+
+
+def test_mcp_bridge_register_tools_idempotent_on_reconnect(registry):
+    """Re-registering tools for the same server should not create duplicates."""
+    mock_session = MagicMock()
+    bridge = MCPBridge(registry=registry)
+    tools = [
+        _make_tool("tool_a", "Tool A desc", {"type": "object"}),
+    ]
+
+    # First registration
+    bridge.register_tools(mock_session, tools, server_name="test-server")
+    assert len(registry.list_all()) == 1
+
+    # Second registration (simulating reconnect)
+    bridge.register_tools(mock_session, tools, server_name="test-server")
+    assert len(registry.list_all()) == 1
+
+    # Verify no duplicate skill IDs in server tracking
+    servers = bridge.list_servers()
+    assert len(servers["test-server"]) == 1, (
+        f"Expected 1 skill ID, got {len(servers['test-server'])}: {servers['test-server']}"
+    )
+
+    # Unregister should clean up without errors
+    bridge.unregister_server("test-server")
+    assert len(registry.list_all()) == 0
