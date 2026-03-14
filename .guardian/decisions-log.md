@@ -1,6 +1,6 @@
 # Decisions Log
 
-**Mission:** ATLAS Phase 2 — Daemon + Reactive Loop + Learning
+**Mission:** Phase 3 Stage A — Trust Escalation + MCP Bridge + Credential Vault
 **Started:** 2026-03-13
 
 ---

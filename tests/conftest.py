@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -23,3 +24,13 @@ def tmp_workspace(tmp_path: Path) -> Path:
     (workspace / "src").mkdir()
     (workspace / "src" / "main.py").write_text("print('hello')\n")
     return workspace
+
+
+@pytest.fixture
+async def db(tmp_path: Path) -> AsyncIterator:
+    """Provides an initialized DatabaseStore backed by a temporary SQLite file."""
+    from atlas.memory.store import DatabaseStore
+    store = DatabaseStore(str(tmp_path / "test.db"))
+    await store.initialize()
+    yield store
+    await store.close()

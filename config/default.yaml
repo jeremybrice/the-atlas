@@ -17,6 +17,12 @@ control:
     - "~/.ssh"
     - "~/.gnupg"
 
+trust:
+  escalation_threshold: 10
+  demotion_failure_count: 3
+  demotion_window_size: 10
+  enabled: true
+
 memory:
   working_memory_max_keys: 100
   episode_retention_days: 90
@@ -44,3 +50,7 @@ reactive:
   enabled: false
   rules: []
   cooldown_default_seconds: 60
+
+mcp:
+  enabled: true
+  servers: []

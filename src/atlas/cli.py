@@ -32,6 +32,7 @@ from atlas.memory.working import WorkingMemoryStore
 from atlas.observation.engine import ObservationEngine
 from atlas.observation.router import EventRouter, ReactiveRule
 from atlas.skills.forge import SkillForge
+from atlas.integrations.mcp import MCPBridge
 from atlas.skills.loader import load_skills_from_directory
 from atlas.skills.registry import SkillRegistry
 from atlas.skills.runtime import InvocationRuntime
@@ -314,6 +315,11 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
             max_retries=config.skills.forge_max_retries,
         )
 
+    # Initialize MCP bridge if enabled
+    mcp_bridge = None
+    if config.mcp.enabled:
+        mcp_bridge = MCPBridge(registry=registry)
+
     execution_loop = ExecutionLoop(
         registry=registry,
         runtime=runtime,
@@ -368,6 +374,8 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         socket_path=socket_path,
         pid_path=pid_path,
         goal_executor=goal_executor,
+        mcp_bridge=mcp_bridge,
+        mcp_servers=config.mcp.servers,
     )
 
     try:
@@ -455,6 +463,96 @@ def status():
         click.echo(f"[status] Daemon running (PID {pid_file.read()})")
     else:
         click.echo("[status] ATLAS is not running as a daemon. Use 'atlas goal' to execute tasks.")
+
+
+# --- Vault commands ---
+
+@main.group()
+def vault():
+    """Manage the credential vault."""
+    pass
+
+
+@vault.command("set")
+@click.argument("service")
+@click.argument("key")
+@click.option("--value", prompt=True, hide_input=True, help="Credential value (prompted securely)")
+@click.option("--passphrase", prompt=True, hide_input=True, help="Vault passphrase")
+def vault_set(service: str, key: str, value: str, passphrase: str):
+    """Store a credential in the vault."""
+    asyncio.run(_vault_set(service, key, value, passphrase))
+
+
+async def _vault_set(service: str, key: str, value: str, passphrase: str):
+    from atlas.integrations.vault import CredentialVault
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        v = await CredentialVault.create(db=db, passphrase=passphrase)
+        await v.store(service, key, value)
+        click.echo(f"[vault] Stored: {service}/{key}")
+    finally:
+        await db.close()
+
+
+@vault.command("list")
+def vault_list():
+    """List stored credentials (services and keys only)."""
+    asyncio.run(_vault_list())
+
+
+async def _vault_list():
+    data_dir = _ensure_data_dir()
+    db_path = data_dir / "data" / "atlas.db"
+    if not db_path.exists():
+        click.echo("[vault] No credentials stored.")
+        return
+    db = DatabaseStore(str(db_path))
+    await db.initialize()
+    try:
+        cursor = await db.db.execute(
+            "SELECT service, key FROM credentials ORDER BY service, key"
+        )
+        rows = await cursor.fetchall()
+        if not rows:
+            click.echo("[vault] No credentials stored.")
+            return
+        for service, key in rows:
+            click.echo(f"  {service}/{key}")
+    finally:
+        await db.close()
+
+
+@vault.command("delete")
+@click.argument("service")
+@click.argument("key")
+def vault_delete(service: str, key: str):
+    """Delete a credential from the vault."""
+    asyncio.run(_vault_delete(service, key))
+
+
+async def _vault_delete(service: str, key: str):
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        cursor = await db.db.execute(
+            "SELECT 1 FROM credentials WHERE service=? AND key=?",
+            (service, key),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            click.echo(f"[vault] Not found: {service}/{key}")
+            return
+        await db.db.execute(
+            "DELETE FROM credentials WHERE service=? AND key=?",
+            (service, key),
+        )
+        await db.db.commit()
+        click.echo(f"[vault] Deleted: {service}/{key}")
+    finally:
+        await db.close()
 
 
 if __name__ == "__main__":

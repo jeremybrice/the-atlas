@@ -22,3 +22,15 @@ reactive:
     config = load_config(str(config_file))
     assert config.daemon.max_concurrent_tasks == 4
     assert config.reactive.enabled is True
+
+
+def test_mcp_config_defaults():
+    from atlas.config import MCPConfig
+    cfg = MCPConfig()
+    assert cfg.servers == []
+    assert cfg.enabled is True
+
+
+def test_webhook_event_type():
+    from atlas.contracts.types import EventType
+    assert EventType.WEBHOOK == "webhook"

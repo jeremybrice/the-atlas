@@ -1,6 +1,6 @@
 import asyncio
 import tempfile
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from atlas.daemon.loop import DaemonLoop
 from atlas.contracts.types import DaemonCommand
 
@@ -69,3 +69,20 @@ async def test_daemon_loop_shutdown_command():
     assert resp["status"] == "ok"
 
     await task  # should exit cleanly
+
+
+async def test_daemon_loop_accepts_mcp_bridge():
+    """DaemonLoop should accept an optional MCPBridge and MCP servers config."""
+    mock_bridge = MagicMock()
+    mock_bridge.register_tools = MagicMock(return_value=[])
+    mock_bridge.unregister_server = MagicMock()
+    mock_bridge.list_servers = MagicMock(return_value={})
+
+    loop = DaemonLoop(
+        socket_path="/tmp/test.sock",
+        pid_path="/tmp/test.pid",
+        mcp_bridge=mock_bridge,
+        mcp_servers=[],
+    )
+    assert loop._mcp_bridge is mock_bridge
+    assert loop._mcp_servers == []

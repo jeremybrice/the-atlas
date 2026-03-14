@@ -21,6 +21,14 @@ class ControlConfig:
 
 
 @dataclass
+class TrustConfig:
+    escalation_threshold: int = 10  # consecutive successes to suggest escalation
+    demotion_failure_count: int = 3  # failures in window to auto-demote
+    demotion_window_size: int = 10  # rolling window for failure rate
+    enabled: bool = True
+
+
+@dataclass
 class MemoryConfig:
     working_memory_max_keys: int = 100
     episode_retention_days: int = 90
@@ -34,6 +42,20 @@ class SkillsConfig:
     forge_enabled: bool = True
     forge_max_retries: int = 1
     custom_skills_dir: str = "~/.atlas/skills"
+
+
+@dataclass
+class MCPServerEntry:
+    name: str = ""
+    command: str = ""
+    args: list[str] = field(default_factory=list)
+    url: str = ""
+
+
+@dataclass
+class MCPConfig:
+    enabled: bool = True
+    servers: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -60,21 +82,25 @@ class AtlasConfig:
     log_level: str = "INFO"
     daemon: DaemonConfig = field(default_factory=DaemonConfig)
     control: ControlConfig = field(default_factory=ControlConfig)
+    trust: TrustConfig = field(default_factory=TrustConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     skills: SkillsConfig = field(default_factory=SkillsConfig)
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     observation: ObservationConfig = field(default_factory=ObservationConfig)
     reactive: ReactiveConfig = field(default_factory=ReactiveConfig)
+    mcp: MCPConfig = field(default_factory=MCPConfig)
 
 
 _SECTION_MAP = {
     "daemon": DaemonConfig,
     "control": ControlConfig,
+    "trust": TrustConfig,
     "memory": MemoryConfig,
     "skills": SkillsConfig,
     "environment": EnvironmentConfig,
     "observation": ObservationConfig,
     "reactive": ReactiveConfig,
+    "mcp": MCPConfig,
 }
 
 
