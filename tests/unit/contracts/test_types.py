@@ -8,6 +8,7 @@ from atlas.contracts.types import (
     Procedure,
     DaemonCommand,
     DaemonResponse,
+    TrustRecord,
 )
 
 
@@ -74,3 +75,24 @@ def test_daemon_command_and_response():
     assert cmd.command_id  # auto-generated
     resp = DaemonResponse(command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"})
     assert resp.status == "ok"
+
+
+def test_trust_record_defaults():
+    record = TrustRecord(skill_id="file.read")
+    assert record.skill_id == "file.read"
+    assert record.successes == 0
+    assert record.failures == 0
+    assert record.consecutive_successes == 0
+    assert record.autonomy_override is None
+
+
+def test_trust_record_with_values():
+    record = TrustRecord(
+        skill_id="file.read",
+        successes=10,
+        failures=1,
+        consecutive_successes=5,
+    )
+    assert record.successes == 10
+    assert record.failures == 1
+    assert record.consecutive_successes == 5

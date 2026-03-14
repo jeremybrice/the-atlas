@@ -231,6 +231,7 @@ class EventType(str, Enum):
     FILESYSTEM = "filesystem"
     SCHEDULED = "scheduled"
     GOAL = "goal"
+    WEBHOOK = "webhook"
 
 
 @dataclass
@@ -269,3 +270,18 @@ class DaemonResponse:
     status: str
     payload: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+
+
+# --- Phase 3: Trust Escalation ---
+
+@dataclass
+class TrustRecord:
+    """Per-skill trust tracking for autonomy escalation/demotion."""
+    skill_id: str
+    successes: int = 0
+    failures: int = 0
+    consecutive_successes: int = 0
+    total_invocations: int = 0
+    autonomy_override: AutonomyLevel | None = None
+    last_outcome: str = ""
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

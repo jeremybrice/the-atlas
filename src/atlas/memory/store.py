@@ -95,5 +95,26 @@ class DatabaseStore:
                 max_retries INTEGER DEFAULT 3,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS trust_records (
+                skill_id TEXT PRIMARY KEY,
+                successes INTEGER DEFAULT 0,
+                failures INTEGER DEFAULT 0,
+                consecutive_successes INTEGER DEFAULT 0,
+                total_invocations INTEGER DEFAULT 0,
+                autonomy_override TEXT,
+                last_outcome TEXT,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS credentials (
+                service TEXT NOT NULL,
+                key TEXT NOT NULL,
+                encrypted_value BLOB NOT NULL,
+                expires_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (service, key)
+            );
         """)
         await self._db.commit()

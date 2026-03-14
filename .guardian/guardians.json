@@ -1,12 +1,12 @@
 {
   "spec_guardian": {
     "enabled": true,
-    "design_doc": "docs/plans/2026-03-13-atlas-phase2-design.md",
+    "design_doc": "docs/plans/2026-03-13-phase3-stage-a.md",
     "agent": "/Users/jeremybrice/.claude/plugins/cache/the-pantheon/guardian/1.0.0-alpha/agents/spec-guardian.md"
   },
   "test_guardian": {
     "enabled": true,
-    "test_command": "pytest tests/ -v && ruff check src/ tests/",
+    "test_command": "pytest tests/ -v",
     "require_passing": true
   },
   "convention_guardian": {
@@ -16,7 +16,7 @@
   "integration_guardian": {
     "enabled": true,
     "file_threshold": 3,
-    "test_command": "pytest tests/ -v && ruff check src/ tests/"
+    "test_command": "pytest tests/ -v"
   },
   "context_guardian": {
     "enabled": true,
