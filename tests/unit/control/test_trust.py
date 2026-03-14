@@ -65,3 +65,20 @@ async def test_get_record_creates_default_if_missing(tracker):
     record = await tracker.get_record("nonexistent.skill")
     assert record.skill_id == "nonexistent.skill"
     assert record.successes == 0
+
+
+async def test_count_recent_failures_ignores_old_failures(db):
+    """A skill with old failures and recent successes should not trigger demotion."""
+    tracker = TrustTracker(db=db, escalation_threshold=100, demotion_failure_count=3, demotion_window_size=5)
+
+    # Simulate a skill that had 3 failures long ago, then many successes
+    await tracker.set_autonomy_override("file.read", AutonomyLevel.ACT_WITHIN_BOUNDS)
+    # Record 3 failures
+    for _ in range(3):
+        await tracker.record_outcome("file.read", success=False)
+    # Record 20 successes (well past the window of 5)
+    for _ in range(20):
+        await tracker.record_outcome("file.read", success=True)
+    # One new failure should NOT trigger demotion (only 1 recent failure, threshold is 3)
+    result = await tracker.record_outcome("file.read", success=False)
+    assert result.should_demote is False

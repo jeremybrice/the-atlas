@@ -104,7 +104,8 @@ class DatabaseStore:
                 total_invocations INTEGER DEFAULT 0,
                 autonomy_override TEXT,
                 last_outcome TEXT,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                recent_outcomes TEXT
             );
 
             CREATE TABLE IF NOT EXISTS credentials (
