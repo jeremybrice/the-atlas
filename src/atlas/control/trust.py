@@ -59,6 +59,8 @@ class TrustTracker:
         # Check escalation: enough consecutive successes
         if record.consecutive_successes >= self._escalation_threshold:
             outcome.should_escalate = True
+            record.consecutive_successes = 0
+            await self._save_record(record, recent)
 
         # Check demotion: too many failures in recent window
         if not success and record.autonomy_override is not None:

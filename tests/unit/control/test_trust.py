@@ -67,6 +67,20 @@ async def test_get_record_creates_default_if_missing(tracker):
     assert record.successes == 0
 
 
+async def test_escalation_fires_only_once(db):
+    """After escalation fires, subsequent successes should not re-trigger it."""
+    tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+
+    # Reach threshold
+    for _ in range(3):
+        result = await tracker.record_outcome("file.read", success=True)
+    assert result.should_escalate is True
+
+    # Next success should NOT trigger escalation again
+    result = await tracker.record_outcome("file.read", success=True)
+    assert result.should_escalate is False
+
+
 async def test_count_recent_failures_ignores_old_failures(db):
     """A skill with old failures and recent successes should not trigger demotion."""
     tracker = TrustTracker(db=db, escalation_threshold=100, demotion_failure_count=3, demotion_window_size=5)
