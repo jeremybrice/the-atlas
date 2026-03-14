@@ -32,6 +32,7 @@ from atlas.memory.working import WorkingMemoryStore
 from atlas.observation.engine import ObservationEngine
 from atlas.observation.router import EventRouter, ReactiveRule
 from atlas.skills.forge import SkillForge
+from atlas.integrations.mcp import MCPBridge
 from atlas.skills.loader import load_skills_from_directory
 from atlas.skills.registry import SkillRegistry
 from atlas.skills.runtime import InvocationRuntime
@@ -314,6 +315,11 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
             max_retries=config.skills.forge_max_retries,
         )
 
+    # Initialize MCP bridge if enabled
+    mcp_bridge = None
+    if config.mcp.enabled:
+        mcp_bridge = MCPBridge(registry=registry)
+
     execution_loop = ExecutionLoop(
         registry=registry,
         runtime=runtime,
@@ -368,6 +374,8 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         socket_path=socket_path,
         pid_path=pid_path,
         goal_executor=goal_executor,
+        mcp_bridge=mcp_bridge,
+        mcp_servers=config.mcp.servers,
     )
 
     try:
