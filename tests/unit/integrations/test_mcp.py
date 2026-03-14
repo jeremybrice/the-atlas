@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from atlas.integrations.mcp import MCPBridge, MCPSkillAdapter
 from atlas.skills.registry import SkillRegistry
 from atlas.contracts.types import RiskLevel
+from atlas.contracts.errors import ConnectorError
 
 
 @pytest.fixture
@@ -53,9 +54,8 @@ async def test_mcp_skill_adapter_handler_error():
         tool_description="A test tool",
         input_schema={},
     )
-    result = await adapter.handler({"arg1": "value1"})
-    assert result["status"] == "error"
-    assert "connection lost" in result["error"]
+    with pytest.raises(ConnectorError, match="connection lost"):
+        await adapter.handler({"arg1": "value1"})
 
 
 def _make_tool(name: str, description: str, input_schema: dict) -> MagicMock:
