@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from atlas.contracts.errors import ConnectorError
+from atlas.contracts.errors import AtlasError, ConnectorError
 from atlas.contracts.types import RiskLevel
 from atlas.skills.registry import SkillRegistry
 
@@ -40,6 +40,8 @@ class MCPSkillAdapter:
                 texts = [c.text for c in result.content if hasattr(c, "text")]
                 output = "\n".join(texts)
             return {"status": "success", "output": output}
+        except AtlasError:
+            raise
         except Exception as e:
             logger.error("MCP tool %s failed: %s", self.tool_name, e)
             raise ConnectorError(f"MCP tool {self.tool_name} failed: {e}", cause=e)

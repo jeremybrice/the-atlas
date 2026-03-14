@@ -34,6 +34,13 @@ class TrustTracker:
         self._demotion_failure_count = demotion_failure_count
         self._demotion_window_size = demotion_window_size
 
+    @staticmethod
+    def _log_ctx(ctx: ExecutionContext | None) -> str:
+        """Format correlation_id for log messages."""
+        if ctx:
+            return f"[{ctx.correlation_id}] "
+        return ""
+
     async def record_outcome(self, skill_id: str, success: bool, ctx: ExecutionContext | None = None) -> TrustOutcome:
         record = await self.get_record(skill_id)
         recent = await self._load_recent(skill_id)
@@ -51,22 +58,24 @@ class TrustTracker:
         # Append the current outcome to the sliding window
         recent.append(success)
 
-        record.updated_at = datetime.now(timezone.utc).isoformat()
-        await self._save_record(record, recent)
-
         outcome = TrustOutcome(skill_id=skill_id)
 
         # Check escalation: enough consecutive successes
         if record.consecutive_successes >= self._escalation_threshold:
             outcome.should_escalate = True
             record.consecutive_successes = 0
-            await self._save_record(record, recent)
 
         # Check demotion: too many failures in recent window
         if not success and record.autonomy_override is not None:
             recent_failures = self._count_recent_failures(recent)
             if recent_failures >= self._demotion_failure_count:
                 outcome.should_demote = True
+
+        # Single save with all mutations applied
+        record.updated_at = datetime.now(timezone.utc).isoformat()
+        await self._save_record(record, recent)
+
+        logger.debug("%sRecorded outcome for %s: %s", self._log_ctx(ctx), skill_id, "success" if success else "failure")
 
         return outcome
 
@@ -117,7 +126,7 @@ class TrustTracker:
         record.autonomy_override = level
         record.updated_at = datetime.now(timezone.utc).isoformat()
         await self._save_record(record, recent)
-        logger.info("Trust override set: %s -> %s", skill_id, level.name)
+        logger.info("%sTrust override set: %s -> %s", self._log_ctx(ctx), skill_id, level.name)
 
     async def get_autonomy_override(self, skill_id: str, ctx: ExecutionContext | None = None) -> AutonomyLevel | None:
         record = await self.get_record(skill_id)

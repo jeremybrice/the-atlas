@@ -45,14 +45,6 @@ class SkillsConfig:
 
 
 @dataclass
-class MCPServerEntry:
-    name: str = ""
-    command: str = ""
-    args: list[str] = field(default_factory=list)
-    url: str = ""
-
-
-@dataclass
 class MCPConfig:
     enabled: bool = True
     servers: list[dict] = field(default_factory=list)
