@@ -98,7 +98,8 @@ class TrustTracker:
     async def get_record(self, skill_id: str, ctx: ExecutionContext | None = None) -> TrustRecord:
         cursor = await self._db.db.execute(
             "SELECT skill_id, successes, failures, consecutive_successes, "
-            "total_invocations, autonomy_override, last_outcome, updated_at "
+            "total_invocations, autonomy_override, last_outcome, updated_at, "
+            "recent_outcomes "
             "FROM trust_records WHERE skill_id = ?",
             (skill_id,),
         )
@@ -118,6 +119,7 @@ class TrustTracker:
             autonomy_override=autonomy_override,
             last_outcome=row[6] or "",
             updated_at=row[7],
+            recent_outcomes=row[8] if row[8] is not None else "[]",
         )
 
     async def set_autonomy_override(self, skill_id: str, level: AutonomyLevel, ctx: ExecutionContext | None = None) -> None:
