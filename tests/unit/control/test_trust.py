@@ -1,15 +1,6 @@
 import pytest
 from atlas.control.trust import TrustTracker
 from atlas.contracts.types import AutonomyLevel
-from atlas.memory.store import DatabaseStore
-
-
-@pytest.fixture
-async def db(tmp_path):
-    store = DatabaseStore(str(tmp_path / "test.db"))
-    await store.initialize()
-    yield store
-    await store.close()
 
 
 @pytest.fixture

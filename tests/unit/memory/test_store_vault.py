@@ -1,15 +1,3 @@
-import pytest
-from atlas.memory.store import DatabaseStore
-
-
-@pytest.fixture
-async def db(tmp_path):
-    store = DatabaseStore(str(tmp_path / "test.db"))
-    await store.initialize()
-    yield store
-    await store.close()
-
-
 async def test_credentials_table_exists(db):
     cursor = await db.db.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='credentials'"
