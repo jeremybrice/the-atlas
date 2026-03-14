@@ -27,21 +27,26 @@ def _derive_key(passphrase: str, salt: bytes) -> bytes:
 
 
 class CredentialVault:
-    """Encrypted credential storage backed by SQLite."""
+    """Encrypted credential storage backed by SQLite. Use CredentialVault.create() to construct."""
 
-    def __init__(self, db: DatabaseStore, passphrase: str):
-        """Sync constructor — uses fixed salt. Prefer CredentialVault.create() for per-vault salt."""
+    def __init__(self, db: DatabaseStore, fernet: Fernet):
+        """Internal constructor. Use CredentialVault.create() instead."""
         self._db = db
-        self._fernet = Fernet(_derive_key(passphrase, b"atlas-credential-vault-v1"))
+        self._fernet = fernet
 
     @classmethod
     async def create(cls, db: DatabaseStore, passphrase: str) -> "CredentialVault":
         """Create a CredentialVault with a per-database random salt."""
         salt = await cls._get_or_create_salt(db)
-        instance = object.__new__(cls)
-        instance._db = db
-        instance._fernet = Fernet(_derive_key(passphrase, salt))
-        return instance
+        fernet = Fernet(_derive_key(passphrase, salt))
+        return cls(db=db, fernet=fernet)
+
+    @staticmethod
+    def _log_ctx(ctx: ExecutionContext | None) -> str:
+        """Format correlation_id for log messages."""
+        if ctx:
+            return f"[{ctx.correlation_id}] "
+        return ""
 
     @staticmethod
     async def _get_or_create_salt(db: DatabaseStore) -> bytes:
@@ -80,7 +85,7 @@ class CredentialVault:
             (service, key, encrypted, expires_at, now, now),
         )
         await self._db.db.commit()
-        logger.info("Stored credential: %s/%s", service, key)
+        logger.info("%sStored credential: %s/%s", self._log_ctx(ctx), service, key)
 
     async def get(self, service: str, key: str, ctx: ExecutionContext | None = None) -> str | None:
         cursor = await self._db.db.execute(
@@ -104,7 +109,7 @@ class CredentialVault:
             (service, key),
         )
         await self._db.db.commit()
-        logger.info("Deleted credential: %s/%s", service, key)
+        logger.info("%sDeleted credential: %s/%s", self._log_ctx(ctx), service, key)
 
     async def list_services(self, ctx: ExecutionContext | None = None) -> list[str]:
         cursor = await self._db.db.execute(

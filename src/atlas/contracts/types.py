@@ -285,3 +285,4 @@ class TrustRecord:
     autonomy_override: AutonomyLevel | None = None
     last_outcome: str = ""
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    recent_outcomes: str = "[]"

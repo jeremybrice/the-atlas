@@ -48,7 +48,6 @@ def test_task_status_terminal_states():
         assert not s.is_terminal()
 
 
-
 def test_observation_event_creation():
     event = ObservationEvent(
         event_type=EventType.FILESYSTEM,

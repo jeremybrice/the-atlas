@@ -58,6 +58,24 @@ async def test_mcp_skill_adapter_handler_error():
         await adapter.handler({"arg1": "value1"})
 
 
+async def test_mcp_skill_adapter_handler_preserves_atlas_errors():
+    """AtlasError subclasses should propagate without being wrapped in ConnectorError."""
+    from atlas.contracts.errors import SkillValidationError
+    mock_session = AsyncMock()
+    mock_session.call_tool = AsyncMock(
+        side_effect=SkillValidationError("bad input schema")
+    )
+
+    adapter = MCPSkillAdapter(
+        session=mock_session,
+        tool_name="test_tool",
+        tool_description="A test tool",
+        input_schema={},
+    )
+    with pytest.raises(SkillValidationError, match="bad input schema"):
+        await adapter.handler({"arg1": "value1"})
+
+
 def _make_tool(name: str, description: str, input_schema: dict) -> MagicMock:
     """Create a mock MCP tool with proper name attribute."""
     tool = MagicMock()

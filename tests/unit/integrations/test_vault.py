@@ -108,6 +108,16 @@ async def test_list_keys_accepts_execution_context(db):
     assert "token" in keys
 
 
+async def test_store_logs_correlation_id(db, caplog):
+    """When ctx is provided, correlation_id should appear in log output."""
+    import logging
+    vault = await CredentialVault.create(db=db, passphrase="test-pass")
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    with caplog.at_level(logging.INFO, logger="atlas.integrations.vault"):
+        await vault.store("github", "token", "secret", ctx=ctx)
+    assert ctx.correlation_id in caplog.text
+
+
 async def test_different_vaults_use_different_salts(tmp_path):
     """Two separate vault databases with the same passphrase should use different salts."""
     from atlas.memory.store import DatabaseStore

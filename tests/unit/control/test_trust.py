@@ -1,3 +1,6 @@
+import json
+import logging
+
 import pytest
 from atlas.control.trust import TrustTracker
 from atlas.contracts.types import AutonomyLevel, ExecutionContext
@@ -118,3 +121,40 @@ async def test_set_autonomy_override_accepts_execution_context(db):
     await tracker.set_autonomy_override("file.read", AutonomyLevel.ACT_WITHIN_BOUNDS, ctx=ctx)
     override = await tracker.get_autonomy_override("file.read", ctx=ctx)
     assert override == AutonomyLevel.ACT_WITHIN_BOUNDS
+
+
+async def test_escalation_reset_persisted_atomically(db):
+    """After escalation, the DB should have consecutive_successes=0 from a single save."""
+    tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+
+    for _ in range(3):
+        result = await tracker.record_outcome("file.read", success=True)
+    assert result.should_escalate is True
+
+    # Verify the DB has the reset value
+    record = await tracker.get_record("file.read")
+    assert record.consecutive_successes == 0
+    assert record.total_invocations == 3
+
+
+async def test_record_outcome_logs_correlation_id(db, caplog):
+    """When ctx is provided, correlation_id should appear in log output."""
+    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    ctx = ExecutionContext.new(mission_id="test-mission")
+    with caplog.at_level(logging.DEBUG, logger="atlas.control.trust"):
+        await tracker.record_outcome("file.read", success=True, ctx=ctx)
+    assert ctx.correlation_id in caplog.text
+
+
+async def test_get_record_populates_recent_outcomes(db):
+    """get_record should populate recent_outcomes from the DB, not leave it empty."""
+    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+
+    # Record some outcomes so recent_outcomes has data
+    await tracker.record_outcome("file.read", success=True)
+    await tracker.record_outcome("file.read", success=False)
+    await tracker.record_outcome("file.read", success=True)
+
+    record = await tracker.get_record("file.read")
+    outcomes = json.loads(record.recent_outcomes)
+    assert outcomes == [True, False, True]
