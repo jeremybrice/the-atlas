@@ -15,7 +15,7 @@ from atlas.integrations.vault import CredentialVault
 async def components(db):
     tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
     policy = PolicyEngine(autonomy_level=AutonomyLevel.SUGGEST)
-    vault = CredentialVault(db=db, passphrase="integration-test")
+    vault = await CredentialVault.create(db=db, passphrase="integration-test")
     return tracker, policy, vault
 
 
@@ -85,11 +85,10 @@ async def test_trust_demotion_reverts_policy(components):
 
 async def test_vault_stores_and_retrieves_across_sessions(db):
     """Verify vault data persists across CredentialVault instances."""
-    vault1 = CredentialVault(db=db, passphrase="same-pass")
+    vault1 = await CredentialVault.create(db=db, passphrase="same-pass")
     await vault1.store("github", "token", "ghp_secret123")
 
-    # Create a new vault instance with same passphrase
-    vault2 = CredentialVault(db=db, passphrase="same-pass")
+    vault2 = await CredentialVault.create(db=db, passphrase="same-pass")
     result = await vault2.get("github", "token")
     assert result == "ghp_secret123"
 
@@ -97,9 +96,9 @@ async def test_vault_stores_and_retrieves_across_sessions(db):
 async def test_vault_wrong_passphrase_fails(db):
     from atlas.contracts.errors import CredentialError
 
-    vault1 = CredentialVault(db=db, passphrase="correct-pass")
+    vault1 = await CredentialVault.create(db=db, passphrase="correct-pass")
     await vault1.store("github", "token", "ghp_secret123")
 
-    vault2 = CredentialVault(db=db, passphrase="wrong-pass")
+    vault2 = await CredentialVault.create(db=db, passphrase="wrong-pass")
     with pytest.raises(CredentialError):
         await vault2.get("github", "token")

@@ -1,6 +1,7 @@
 """Credential Vault — encrypted storage for API keys and OAuth tokens."""
 import base64
 import logging
+import os
 from datetime import datetime, timezone
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -13,17 +14,13 @@ from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
 
-# Fixed salt for key derivation. In production, you'd store a random salt per-vault,
-# but for a single-user local tool this is sufficient.
-_SALT = b"atlas-credential-vault-v1"
 
-
-def _derive_key(passphrase: str) -> bytes:
+def _derive_key(passphrase: str, salt: bytes) -> bytes:
     """Derive a Fernet key from a passphrase using PBKDF2."""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=_SALT,
+        salt=salt,
         iterations=480_000,
     )
     return base64.urlsafe_b64encode(kdf.derive(passphrase.encode()))
@@ -33,8 +30,35 @@ class CredentialVault:
     """Encrypted credential storage backed by SQLite."""
 
     def __init__(self, db: DatabaseStore, passphrase: str):
+        """Sync constructor — uses fixed salt. Prefer CredentialVault.create() for per-vault salt."""
         self._db = db
-        self._fernet = Fernet(_derive_key(passphrase))
+        self._fernet = Fernet(_derive_key(passphrase, b"atlas-credential-vault-v1"))
+
+    @classmethod
+    async def create(cls, db: DatabaseStore, passphrase: str) -> "CredentialVault":
+        """Create a CredentialVault with a per-database random salt."""
+        salt = await cls._get_or_create_salt(db)
+        instance = object.__new__(cls)
+        instance._db = db
+        instance._fernet = Fernet(_derive_key(passphrase, salt))
+        return instance
+
+    @staticmethod
+    async def _get_or_create_salt(db: DatabaseStore) -> bytes:
+        """Retrieve existing salt from vault_meta, or generate and store a new one."""
+        cursor = await db.db.execute(
+            "SELECT value FROM vault_meta WHERE key = 'salt'"
+        )
+        row = await cursor.fetchone()
+        if row:
+            return row[0]
+        salt = os.urandom(32)
+        await db.db.execute(
+            "INSERT INTO vault_meta (key, value) VALUES ('salt', ?)",
+            (salt,),
+        )
+        await db.db.commit()
+        return salt
 
     async def store(
         self,

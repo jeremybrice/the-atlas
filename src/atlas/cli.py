@@ -481,7 +481,7 @@ async def _vault_set(service: str, key: str, value: str, passphrase: str):
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
     try:
-        v = CredentialVault(db=db, passphrase=passphrase)
+        v = await CredentialVault.create(db=db, passphrase=passphrase)
         await v.store(service, key, value)
         click.echo(f"[vault] Stored: {service}/{key}")
     finally:
@@ -525,14 +525,23 @@ def vault_delete(service: str, key: str):
 
 
 async def _vault_delete(service: str, key: str):
-    from atlas.integrations.vault import CredentialVault
     data_dir = _ensure_data_dir()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
     try:
-        # Use a dummy passphrase since delete doesn't need decryption
-        v = CredentialVault(db=db, passphrase="unused")
-        await v.delete(service, key)
+        cursor = await db.db.execute(
+            "SELECT 1 FROM credentials WHERE service=? AND key=?",
+            (service, key),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            click.echo(f"[vault] Not found: {service}/{key}")
+            return
+        await db.db.execute(
+            "DELETE FROM credentials WHERE service=? AND key=?",
+            (service, key),
+        )
+        await db.db.commit()
         click.echo(f"[vault] Deleted: {service}/{key}")
     finally:
         await db.close()

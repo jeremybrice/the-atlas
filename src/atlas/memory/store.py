@@ -117,5 +117,10 @@ class DatabaseStore:
                 updated_at TEXT NOT NULL,
                 PRIMARY KEY (service, key)
             );
+
+            CREATE TABLE IF NOT EXISTS vault_meta (
+                key TEXT PRIMARY KEY,
+                value BLOB NOT NULL
+            );
         """)
         await self._db.commit()
