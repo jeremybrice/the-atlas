@@ -3,10 +3,11 @@ import base64
 import logging
 from datetime import datetime, timezone
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from atlas.contracts.errors import CredentialError
 from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,13 @@ class CredentialVault:
         row = await cursor.fetchone()
         if row is None:
             return None
-        return self._fernet.decrypt(row[0]).decode()
+        try:
+            return self._fernet.decrypt(row[0]).decode()
+        except InvalidToken as e:
+            raise CredentialError(
+                f"Decryption failed for {service}/{key}: wrong passphrase or corrupted data",
+                cause=e,
+            )
 
     async def delete(self, service: str, key: str) -> None:
         await self._db.db.execute(

@@ -95,10 +95,11 @@ async def test_vault_stores_and_retrieves_across_sessions(db):
 
 
 async def test_vault_wrong_passphrase_fails(db):
+    from atlas.contracts.errors import CredentialError
+
     vault1 = CredentialVault(db=db, passphrase="correct-pass")
     await vault1.store("github", "token", "ghp_secret123")
 
-    # Different passphrase = different key = decryption fails
     vault2 = CredentialVault(db=db, passphrase="wrong-pass")
-    with pytest.raises(Exception):  # Fernet raises InvalidToken
+    with pytest.raises(CredentialError):
         await vault2.get("github", "token")

@@ -1,4 +1,5 @@
 import pytest
+from atlas.contracts.errors import CredentialError
 from atlas.integrations.vault import CredentialVault
 
 
@@ -62,3 +63,12 @@ async def test_store_with_expiry(vault):
     await vault.store("github", "oauth", "token_val", expires_at="2026-12-31T00:00:00Z")
     result = await vault.get("github", "oauth")
     assert result == "token_val"
+
+
+async def test_get_with_wrong_passphrase_raises_credential_error(db):
+    vault1 = CredentialVault(db=db, passphrase="correct-pass")
+    await vault1.store("github", "token", "secret123")
+
+    vault2 = CredentialVault(db=db, passphrase="wrong-pass")
+    with pytest.raises(CredentialError, match="Decryption failed"):
+        await vault2.get("github", "token")
