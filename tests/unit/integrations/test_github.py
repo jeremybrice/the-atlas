@@ -1,6 +1,8 @@
+import httpx
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from atlas.integrations.connectors.github import GitHubConnector
+from atlas.contracts.errors import ConnectorError, CredentialError
 from atlas.contracts.types import EventType, ObservationEvent
 
 
@@ -50,10 +52,31 @@ async def test_execute_action_comment(connector):
     assert result["status"] == "success"
 
 
-async def test_execute_action_unknown(connector):
-    result = await connector.execute_action("unknown_action", {})
-    assert result["status"] == "error"
-    assert "unsupported" in result["error"].lower()
+async def test_execute_action_unknown_raises(connector):
+    with pytest.raises(ConnectorError, match="Unsupported"):
+        await connector.execute_action("unknown_action", {})
+
+
+async def test_post_comment_401_raises_credential_error(connector):
+    await connector.authenticate()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 401
+    exc = httpx.HTTPStatusError("Unauthorized", request=MagicMock(), response=mock_resp)
+    mock_resp.raise_for_status.side_effect = exc
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+        with pytest.raises(CredentialError):
+            await connector.execute_action("comment", {"issue_number": 1, "body": "test"})
+
+
+async def test_post_comment_500_raises_connector_error(connector):
+    await connector.authenticate()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+    exc = httpx.HTTPStatusError("Server Error", request=MagicMock(), response=mock_resp)
+    mock_resp.raise_for_status.side_effect = exc
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+        with pytest.raises(ConnectorError):
+            await connector.execute_action("comment", {"issue_number": 1, "body": "test"})
 
 
 async def test_handle_event_pr_opened(connector):

@@ -4,6 +4,7 @@ from typing import Any, Callable
 
 import httpx
 
+from atlas.contracts.errors import ConnectorError, CredentialError
 from atlas.contracts.types import EventType, ObservationEvent
 from atlas.integrations.connector import ConnectorABC
 
@@ -51,7 +52,7 @@ class GitHubConnector(ConnectorABC):
             case "list_pulls":
                 return await self._list_pulls(params)
             case _:
-                return {"status": "error", "error": f"Unsupported action: {action}"}
+                raise ConnectorError(f"Unsupported GitHub action: {action}", max_retries=0)
 
     def get_event_parser(self) -> Callable[[str, dict], ObservationEvent]:
         """Return an EventBridge-compatible parser for GitHub webhooks."""
@@ -64,6 +65,16 @@ class GitHubConnector(ConnectorABC):
             )
         return parser
 
+    def _raise_for_status(self, exc: httpx.HTTPStatusError) -> None:
+        status = exc.response.status_code
+        if status in (401, 403):
+            raise CredentialError(f"GitHub auth failed ({status}): {exc}", cause=exc)
+        if status == 429:
+            raise ConnectorError(f"GitHub rate limit exceeded: {exc}", max_retries=5, cause=exc)
+        if status >= 500:
+            raise ConnectorError(f"GitHub server error ({status}): {exc}", max_retries=3, cause=exc)
+        raise ConnectorError(f"GitHub client error ({status}): {exc}", max_retries=1, cause=exc)
+
     async def _post_comment(self, params: dict) -> dict:
         issue_number = params.get("issue_number")
         body = params.get("body", "")
@@ -73,8 +84,10 @@ class GitHubConnector(ConnectorABC):
                 resp = await client.post(url, json={"body": body}, headers=self._headers)
                 resp.raise_for_status()
                 return {"status": "success", "data": resp.json()}
+        except httpx.HTTPStatusError as e:
+            self._raise_for_status(e)
         except httpx.HTTPError as e:
-            return {"status": "error", "error": str(e)}
+            raise ConnectorError(f"GitHub API request failed: {e}", cause=e)
 
     async def _create_issue(self, params: dict) -> dict:
         url = f"{self._api_base}/repos/{self._owner}/{self._repo}/issues"
@@ -83,8 +96,10 @@ class GitHubConnector(ConnectorABC):
                 resp = await client.post(url, json=params, headers=self._headers)
                 resp.raise_for_status()
                 return {"status": "success", "data": resp.json()}
+        except httpx.HTTPStatusError as e:
+            self._raise_for_status(e)
         except httpx.HTTPError as e:
-            return {"status": "error", "error": str(e)}
+            raise ConnectorError(f"GitHub API request failed: {e}", cause=e)
 
     async def _list_pulls(self, params: dict) -> dict:
         url = f"{self._api_base}/repos/{self._owner}/{self._repo}/pulls"
@@ -93,8 +108,10 @@ class GitHubConnector(ConnectorABC):
                 resp = await client.get(url, headers=self._headers, params=params)
                 resp.raise_for_status()
                 return {"status": "success", "data": resp.json()}
+        except httpx.HTTPStatusError as e:
+            self._raise_for_status(e)
         except httpx.HTTPError as e:
-            return {"status": "error", "error": str(e)}
+            raise ConnectorError(f"GitHub API request failed: {e}", cause=e)
 
     def _event_priority(self, event_type: str, payload: dict) -> int:
         """Assign priority based on event type. Lower number = higher priority."""
