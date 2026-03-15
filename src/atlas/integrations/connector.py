@@ -6,6 +6,7 @@ from abc import abstractmethod
 from typing import Any
 
 from atlas.contracts.interfaces import ConnectorInterface
+from atlas.contracts.types import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +28,17 @@ class ConnectorABC(ConnectorInterface):
         return self._service_name
 
     @abstractmethod
-    async def authenticate(self) -> None:
+    async def authenticate(self, ctx: ExecutionContext | None = None) -> None:
         """Authenticate with the external service."""
         ...
 
     @abstractmethod
-    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
         """Handle an incoming event from the external service."""
         ...
 
     @abstractmethod
-    async def execute_action(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
+    async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
         """Execute an outbound action on the external service."""
         ...
 

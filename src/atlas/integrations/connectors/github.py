@@ -5,7 +5,7 @@ from typing import Any, Callable, NoReturn
 import httpx
 
 from atlas.contracts.errors import ConnectorError, CredentialError
-from atlas.contracts.types import EventType, ObservationEvent
+from atlas.contracts.types import EventType, ExecutionContext, ObservationEvent
 from atlas.integrations.connector import ConnectorABC
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class GitHubConnector(ConnectorABC):
         self._api_base = api_base
         self._headers: dict[str, str] = {}
 
-    async def authenticate(self) -> None:
+    async def authenticate(self, ctx: ExecutionContext | None = None) -> None:
         self._headers = {
             "Authorization": f"Bearer {self._token}",
             "Accept": "application/vnd.github+json",
@@ -37,11 +37,11 @@ class GitHubConnector(ConnectorABC):
         }
         logger.info("GitHub connector authenticated for %s/%s", self._owner, self._repo)
 
-    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
         logger.info("GitHub event: %s action=%s", event_type, payload.get("action", ""))
         return {"handled": True, "event_type": event_type}
 
-    async def execute_action(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
+    async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
         await self._check_rate_limit()
 
         match action:
