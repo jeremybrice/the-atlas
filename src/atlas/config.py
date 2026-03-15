@@ -70,7 +70,7 @@ class ReactiveConfig:
 
 @dataclass
 class WebhookConfig:
-    enabled: bool = True
+    enabled: bool = False
     host: str = "127.0.0.1"
     port: int = 8484
     webhook_path_prefix: str = "/webhooks"

@@ -39,7 +39,7 @@ def test_webhook_event_type():
 def test_webhook_config_defaults():
     from atlas.config import WebhookConfig
     cfg = WebhookConfig()
-    assert cfg.enabled is True
+    assert cfg.enabled is False
     assert cfg.host == "127.0.0.1"
     assert cfg.port == 8484
     assert cfg.webhook_path_prefix == "/webhooks"
