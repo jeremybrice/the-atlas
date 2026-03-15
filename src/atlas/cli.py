@@ -393,6 +393,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
             event_bridge=event_bridge,
             event_callback=obs_engine._on_event,
             webhook_path_prefix=config.webhook.webhook_path_prefix,
+            secrets=config.webhook.secrets,
         )
         http_app = webhook_server.create_app()
 

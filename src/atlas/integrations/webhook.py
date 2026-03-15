@@ -20,10 +20,12 @@ class WebhookServer:
         event_bridge: EventBridge,
         event_callback: EventCallback,
         webhook_path_prefix: str = "/webhooks",
+        secrets: dict[str, str] | None = None,
     ):
         self._bridge = event_bridge
         self._callback = event_callback
         self._prefix = webhook_path_prefix
+        self._secrets = secrets or {}
         self._app: web.Application | None = None
 
     def create_app(self) -> web.Application:
@@ -35,16 +37,36 @@ class WebhookServer:
 
     async def _handle_webhook(self, request: web.Request) -> web.Response:
         service = request.match_info["service"]
-        try:
-            payload = await request.json()
-        except Exception:
-            return web.json_response(
-                {"status": "error", "message": "invalid JSON"}, status=400,
-            )
 
-        # Extract event type from headers (service-specific)
+        # Verify signature if a secret is configured for this service
+        secret = self._secrets.get(service)
+        if secret:
+            raw_body = await request.read()
+            signature = self._extract_signature(service, request)
+            if not signature or not self._bridge.verify_signature(
+                service, raw_body, signature, secret,
+            ):
+                logger.warning("Webhook signature verification failed for %s", service)
+                return web.json_response(
+                    {"status": "error", "message": "signature verification failed"},
+                    status=403,
+                )
+            try:
+                import json
+                payload = json.loads(raw_body)
+            except Exception:
+                return web.json_response(
+                    {"status": "error", "message": "invalid JSON"}, status=400,
+                )
+        else:
+            try:
+                payload = await request.json()
+            except Exception:
+                return web.json_response(
+                    {"status": "error", "message": "invalid JSON"}, status=400,
+                )
+
         event_type = self._extract_event_type(service, request)
-
         event = self._bridge.parse(service, event_type, payload)
         if event is None:
             return web.json_response(
@@ -52,7 +74,6 @@ class WebhookServer:
                 status=400,
             )
 
-        # Fire-and-forget to the callback
         try:
             await self._callback(event)
         except Exception as e:
@@ -62,6 +83,11 @@ class WebhookServer:
 
     async def _handle_health(self, request: web.Request) -> web.Response:
         return web.json_response({"status": "ok"})
+
+    def _extract_signature(self, service: str, request: web.Request) -> str:
+        if service == "github":
+            return request.headers.get("X-Hub-Signature-256", "")
+        return ""
 
     def _extract_event_type(self, service: str, request: web.Request) -> str:
         if service == "github":

@@ -1,7 +1,14 @@
+import hashlib
+import hmac as hmac_mod
+
 import pytest
 from atlas.integrations.webhook import WebhookServer
 from atlas.integrations.event_bridge import EventBridge
 from atlas.contracts.types import EventType, ObservationEvent
+
+
+async def _noop_callback(e):
+    pass
 
 
 @pytest.fixture
@@ -74,3 +81,42 @@ async def test_health_endpoint(webhook_server, aiohttp_client):
     assert resp.status == 200
     data = await resp.json()
     assert data["status"] == "ok"
+
+
+async def test_webhook_rejects_invalid_signature(aiohttp_client):
+    bridge = EventBridge()
+    bridge.register_parser("github", lambda et, p: ObservationEvent(
+        event_type=EventType.WEBHOOK, source="github", payload=p,
+    ))
+    server = WebhookServer(
+        event_bridge=bridge, event_callback=_noop_callback,
+        secrets={"github": "my-secret"},
+    )
+    client = await aiohttp_client(server.create_app())
+    resp = await client.post(
+        "/webhooks/github", json={"action": "opened"},
+        headers={"X-GitHub-Event": "push", "X-Hub-Signature-256": "sha256=bad"},
+    )
+    assert resp.status == 403
+
+
+async def test_webhook_accepts_valid_signature(aiohttp_client):
+    bridge = EventBridge()
+    bridge.register_parser("github", lambda et, p: ObservationEvent(
+        event_type=EventType.WEBHOOK, source="github", payload=p,
+    ))
+    received = []
+    server = WebhookServer(
+        event_bridge=bridge,
+        event_callback=lambda e: received.append(e),
+        secrets={"github": "my-secret"},
+    )
+    client = await aiohttp_client(server.create_app())
+    body = b'{"action":"opened"}'
+    sig = "sha256=" + hmac_mod.new(b"my-secret", body, hashlib.sha256).hexdigest()
+    resp = await client.post(
+        "/webhooks/github", data=body,
+        headers={"X-GitHub-Event": "push", "X-Hub-Signature-256": sig, "Content-Type": "application/json"},
+    )
+    assert resp.status == 200
+    assert len(received) == 1
