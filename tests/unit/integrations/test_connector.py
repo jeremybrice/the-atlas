@@ -1,3 +1,4 @@
+from atlas.contracts.interfaces import ConnectorInterface
 from atlas.integrations.connector import ConnectorABC
 
 
@@ -17,6 +18,10 @@ class FakeConnector(ConnectorABC):
     async def execute_action(self, action: str, params: dict) -> dict:
         await self._check_rate_limit()
         return {"action": action, "params": params}
+
+
+def test_connector_abc_implements_interface():
+    assert issubclass(ConnectorABC, ConnectorInterface)
 
 
 def test_connector_has_service_name():

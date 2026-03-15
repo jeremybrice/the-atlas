@@ -2,12 +2,14 @@
 import asyncio
 import logging
 import time
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+
+from atlas.contracts.interfaces import ConnectorInterface
 
 logger = logging.getLogger(__name__)
 
 
-class ConnectorABC(ABC):
+class ConnectorABC(ConnectorInterface):
     """Base class for all external service connectors.
 
     Provides rate limiting and a standard interface for authentication,
