@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 GoalHandler = Callable[[str], Coroutine[Any, Any, dict]]
 
-_start_time = time.monotonic()
-
 
 class DashboardServer:
     """REST API for monitoring ATLAS state."""
@@ -30,6 +28,7 @@ class DashboardServer:
         self._audit = audit
         self._registry = registry
         self._goal_handler = goal_handler
+        self._start_time = time.monotonic()
 
     def create_app(self) -> web.Application:
         app = web.Application()
@@ -42,7 +41,7 @@ class DashboardServer:
         return app
 
     async def _handle_status(self, request: web.Request) -> web.Response:
-        uptime = time.monotonic() - _start_time
+        uptime = time.monotonic() - self._start_time
         return web.json_response({
             "status": "running",
             "uptime_seconds": round(uptime, 1),
