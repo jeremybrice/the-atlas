@@ -35,6 +35,7 @@ class DaemonLoop:
         self._http_host = http_host
         self._http_port = http_port
         self._http_runner = None
+        self._http_running = False
 
     async def start(self) -> None:
         self._start_time = time.monotonic()
@@ -66,6 +67,7 @@ class DaemonLoop:
                 )
             else:
                 logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
+                self._http_running = True
 
         while self._running:
             await asyncio.sleep(0.1)
@@ -74,6 +76,7 @@ class DaemonLoop:
         self._disconnect_mcp_servers()
         if self._http_runner:
             await self._http_runner.cleanup()
+            self._http_running = False
         await self._server.stop()
         self._pid_file.remove()
         logger.info("Daemon stopped.")
@@ -114,6 +117,7 @@ class DaemonLoop:
                 "pid": os.getpid(),
                 "uptime_seconds": round(uptime, 1),
                 "running": self._running,
+                "http_running": self._http_running,
             },
         }
 
