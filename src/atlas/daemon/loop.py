@@ -54,8 +54,18 @@ class DaemonLoop:
             self._http_runner = web.AppRunner(self._http_app)
             await self._http_runner.setup()
             site = web.TCPSite(self._http_runner, self._http_host, self._http_port)
-            await site.start()
-            logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
+            try:
+                await site.start()
+            except OSError as e:
+                await self._http_runner.cleanup()
+                self._http_runner = None
+                logger.error(
+                    "Failed to start HTTP server on %s:%d — %s. "
+                    "Daemon continues without HTTP.",
+                    self._http_host, self._http_port, e,
+                )
+            else:
+                logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
 
         while self._running:
             await asyncio.sleep(0.1)
