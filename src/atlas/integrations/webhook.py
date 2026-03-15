@@ -1,4 +1,5 @@
 """Webhook Server — HTTP endpoint for receiving webhook payloads from external services."""
+import json
 import logging
 from typing import Any, Callable, Coroutine
 
@@ -52,7 +53,6 @@ class WebhookServer:
                     status=403,
                 )
             try:
-                import json
                 payload = json.loads(raw_body)
             except Exception:
                 return web.json_response(

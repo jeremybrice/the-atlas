@@ -1,6 +1,6 @@
 """GitHub Connector — handles GitHub API interactions and webhook events."""
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, NoReturn
 
 import httpx
 
@@ -65,7 +65,7 @@ class GitHubConnector(ConnectorABC):
             )
         return parser
 
-    def _raise_for_status(self, exc: httpx.HTTPStatusError) -> None:
+    def _raise_for_status(self, exc: httpx.HTTPStatusError) -> NoReturn:
         status = exc.response.status_code
         if status in (401, 403):
             raise CredentialError(f"GitHub auth failed ({status}): {exc}", cause=exc)
