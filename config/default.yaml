@@ -61,3 +61,8 @@ webhook:
   port: 8484
   webhook_path_prefix: "/webhooks"
   dashboard_enabled: true
+
+github:
+  token: ""
+  owner: ""
+  repo: ""

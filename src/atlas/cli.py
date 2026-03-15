@@ -370,31 +370,43 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     await obs_engine.start()
 
-    # Set up webhook + dashboard HTTP server
-    from atlas.integrations.event_bridge import EventBridge
-    from atlas.integrations.webhook import WebhookServer
-    from atlas.integrations.dashboard import DashboardServer
+    # Set up webhook + dashboard HTTP server if enabled
+    http_app = None
+    if config.webhook.enabled:
+        from atlas.integrations.event_bridge import EventBridge
+        from atlas.integrations.webhook import WebhookServer
+        from atlas.integrations.dashboard import DashboardServer
 
-    event_bridge = EventBridge()
-    webhook_server = WebhookServer(
-        event_bridge=event_bridge,
-        event_callback=obs_engine._on_event,
-        webhook_path_prefix=config.webhook.webhook_path_prefix,
-    )
-    dashboard_server = DashboardServer(
-        db=db,
-        audit=audit,
-        registry=registry,
-        goal_handler=goal_executor,
-    )
+        event_bridge = EventBridge()
 
-    # Build combined aiohttp app
-    http_app = webhook_server.create_app()
-    dashboard_app = dashboard_server.create_app()
-    # Merge dashboard routes into webhook app
-    for resource in dashboard_app.router.resources():
-        for route in resource:
-            http_app.router.add_route(route.method, resource.canonical, route.handler)
+        # Register GitHub event parser if configured
+        if config.github.token:
+            from atlas.integrations.connectors.github import GitHubConnector
+            github_connector = GitHubConnector(
+                token=config.github.token,
+                owner=config.github.owner,
+                repo=config.github.repo,
+            )
+            event_bridge.register_parser("github", github_connector.get_event_parser())
+
+        webhook_server = WebhookServer(
+            event_bridge=event_bridge,
+            event_callback=obs_engine._on_event,
+            webhook_path_prefix=config.webhook.webhook_path_prefix,
+        )
+        http_app = webhook_server.create_app()
+
+        if config.webhook.dashboard_enabled:
+            dashboard_server = DashboardServer(
+                db=db,
+                audit=audit,
+                registry=registry,
+                goal_handler=goal_executor,
+            )
+            dashboard_app = dashboard_server.create_app()
+            for resource in dashboard_app.router.resources():
+                for route in resource:
+                    http_app.router.add_route(route.method, resource.canonical, route.handler)
 
     daemon_loop = DaemonLoop(
         socket_path=socket_path,
