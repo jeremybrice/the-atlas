@@ -37,11 +37,11 @@ class GitHubConnector(ConnectorABC):
         }
         logger.info("GitHub connector authenticated for %s/%s", self._owner, self._repo)
 
-    async def handle_event(self, event_type: str, payload: dict) -> dict:
+    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         logger.info("GitHub event: %s action=%s", event_type, payload.get("action", ""))
         return {"handled": True, "event_type": event_type}
 
-    async def execute_action(self, action: str, params: dict) -> dict:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
         await self._check_rate_limit()
 
         match action:

@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 from abc import abstractmethod
+from typing import Any
 
 from atlas.contracts.interfaces import ConnectorInterface
 
@@ -31,12 +32,12 @@ class ConnectorABC(ConnectorInterface):
         ...
 
     @abstractmethod
-    async def handle_event(self, event_type: str, payload: dict) -> dict:
+    async def handle_event(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle an incoming event from the external service."""
         ...
 
     @abstractmethod
-    async def execute_action(self, action: str, params: dict) -> dict:
+    async def execute_action(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
         """Execute an outbound action on the external service."""
         ...
 
