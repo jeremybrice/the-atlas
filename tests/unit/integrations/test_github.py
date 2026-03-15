@@ -87,3 +87,20 @@ async def test_handle_event_pr_opened(connector):
     })
     assert result["handled"] is True
     assert result["event_type"] == "pull_request"
+
+
+async def test_handle_event_logs_correlation_id(connector, caplog):
+    """ExecutionContext.correlation_id should appear in log output."""
+    from atlas.contracts.types import ExecutionContext
+    ctx = ExecutionContext(correlation_id="test-corr-123", mission_id="m1", task_id="t1")
+    with caplog.at_level("INFO"):
+        await connector.handle_event("push", {"ref": "main"}, ctx=ctx)
+    assert "test-corr-123" in caplog.text
+
+
+async def test_authenticate_logs_correlation_id(connector, caplog):
+    from atlas.contracts.types import ExecutionContext
+    ctx = ExecutionContext(correlation_id="auth-corr-456", mission_id="m1", task_id="t1")
+    with caplog.at_level("INFO"):
+        await connector.authenticate(ctx=ctx)
+    assert "auth-corr-456" in caplog.text

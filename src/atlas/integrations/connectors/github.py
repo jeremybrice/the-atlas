@@ -29,16 +29,23 @@ class GitHubConnector(ConnectorABC):
         self._api_base = api_base
         self._headers: dict[str, str] = {}
 
+    @staticmethod
+    def _log_ctx(ctx: ExecutionContext | None) -> str:
+        """Format correlation_id for log messages."""
+        if ctx:
+            return f"[{ctx.correlation_id}] "
+        return ""
+
     async def authenticate(self, ctx: ExecutionContext | None = None) -> None:
         self._headers = {
             "Authorization": f"Bearer {self._token}",
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        logger.info("GitHub connector authenticated for %s/%s", self._owner, self._repo)
+        logger.info("%sGitHub connector authenticated for %s/%s", self._log_ctx(ctx), self._owner, self._repo)
 
     async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
-        logger.info("GitHub event: %s action=%s", event_type, payload.get("action", ""))
+        logger.info("%sGitHub event: %s action=%s", self._log_ctx(ctx), event_type, payload.get("action", ""))
         return {"handled": True, "event_type": event_type}
 
     async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
