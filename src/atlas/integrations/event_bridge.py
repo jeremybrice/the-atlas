@@ -43,9 +43,9 @@ class EventBridge:
         """Verify webhook signature. Currently supports GitHub HMAC-SHA256."""
         if service == "github":
             return self._verify_github(body, signature, secret)
-        # Default: no verification available
-        logger.warning("No signature verification for service: %s", service)
-        return True
+        # Default: fail-closed — reject unknown services
+        logger.error("No signature verification for service: %s — rejecting", service)
+        return False
 
     def _verify_github(self, body: bytes, signature: str, secret: str) -> bool:
         if not signature.startswith("sha256="):

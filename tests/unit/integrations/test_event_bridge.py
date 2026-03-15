@@ -41,3 +41,8 @@ def test_verify_github_signature():
 def test_verify_github_signature_invalid():
     bridge = EventBridge()
     assert bridge.verify_signature("github", b"body", "sha256=invalid", "secret") is False
+
+
+def test_verify_unknown_service_returns_false():
+    bridge = EventBridge()
+    assert bridge.verify_signature("unknown", b"body", "sig", "secret") is False
