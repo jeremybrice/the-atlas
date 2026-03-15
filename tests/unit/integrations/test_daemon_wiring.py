@@ -39,17 +39,13 @@ async def test_combined_app_has_all_routes(db):
     dashboard_app = dashboard.create_app()
 
     # Mount sub-apps or merge routes
-    for route in webhook_app.router.routes():
-        if hasattr(route, "resource") and hasattr(route.resource, "canonical"):
-            info = route.get_info()
-            if "formatter" in info:
-                app.router.add_route(route.method, info["formatter"], route.handler)
-
-    for route in dashboard_app.router.routes():
-        if hasattr(route, "resource") and hasattr(route.resource, "canonical"):
-            info = route.get_info()
-            if "formatter" in info:
-                app.router.add_route(route.method, info["formatter"], route.handler)
+    for sub_app in (webhook_app, dashboard_app):
+        for route in sub_app.router.routes():
+            if hasattr(route, "resource") and hasattr(route.resource, "canonical"):
+                info = route.get_info()
+                path = info.get("formatter") or info.get("path")
+                if path:
+                    app.router.add_route(route.method, path, route.handler)
 
     # Verify key routes exist
     route_paths = set()
@@ -57,4 +53,5 @@ async def test_combined_app_has_all_routes(db):
         if hasattr(resource, "canonical"):
             route_paths.add(resource.canonical)
 
-    assert "/webhooks/{service}" in route_paths or len(route_paths) > 0
+    assert "/webhooks/{service}" in route_paths
+    assert "/api/status" in route_paths
