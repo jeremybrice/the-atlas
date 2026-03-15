@@ -1,6 +1,5 @@
 """Test that the webhook/dashboard app factory works with daemon components."""
 import pytest
-from aiohttp import web
 from atlas.integrations.webhook import WebhookServer
 from atlas.integrations.dashboard import DashboardServer
 from atlas.integrations.event_bridge import EventBridge
@@ -33,23 +32,18 @@ async def test_combined_app_has_all_routes(db):
     webhook = WebhookServer(event_bridge=bridge, event_callback=noop_event)
     dashboard = DashboardServer(db=db, audit=audit, registry=registry, goal_handler=noop_goal)
 
-    # Create combined app
-    app = web.Application()
-    webhook_app = webhook.create_app()
+    # Create combined app — matching production code in cli.py _run_daemon()
+    http_app = webhook.create_app()
     dashboard_app = dashboard.create_app()
 
-    # Mount sub-apps or merge routes
-    for sub_app in (webhook_app, dashboard_app):
-        for route in sub_app.router.routes():
-            if hasattr(route, "resource") and hasattr(route.resource, "canonical"):
-                info = route.get_info()
-                path = info.get("formatter") or info.get("path")
-                if path:
-                    app.router.add_route(route.method, path, route.handler)
+    # Merge dashboard routes into webhook app (same as cli.py lines 408-410)
+    for resource in dashboard_app.router.resources():
+        for route in resource:
+            http_app.router.add_route(route.method, resource.canonical, route.handler)
 
     # Verify key routes exist
     route_paths = set()
-    for resource in app.router.resources():
+    for resource in http_app.router.resources():
         if hasattr(resource, "canonical"):
             route_paths.add(resource.canonical)
 
