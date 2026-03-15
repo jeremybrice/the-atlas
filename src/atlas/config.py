@@ -74,7 +74,7 @@ class WebhookConfig:
     host: str = "127.0.0.1"
     port: int = 8484
     webhook_path_prefix: str = "/webhooks"
-    dashboard_enabled: bool = True
+    dashboard_enabled: bool = False
     secrets: dict[str, str] = field(default_factory=dict)
 
 

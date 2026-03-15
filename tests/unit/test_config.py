@@ -43,4 +43,4 @@ def test_webhook_config_defaults():
     assert cfg.host == "127.0.0.1"
     assert cfg.port == 8484
     assert cfg.webhook_path_prefix == "/webhooks"
-    assert cfg.dashboard_enabled is True
+    assert cfg.dashboard_enabled is False
