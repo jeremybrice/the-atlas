@@ -106,9 +106,13 @@ async def test_webhook_accepts_valid_signature(aiohttp_client):
         event_type=EventType.WEBHOOK, source="github", payload=p,
     ))
     received = []
+
+    async def on_event(e):
+        received.append(e)
+
     server = WebhookServer(
         event_bridge=bridge,
-        event_callback=lambda e: received.append(e),
+        event_callback=on_event,
         secrets={"github": "my-secret"},
     )
     client = await aiohttp_client(server.create_app())
