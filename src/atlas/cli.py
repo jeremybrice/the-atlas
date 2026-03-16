@@ -387,6 +387,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
                 owner=config.github.owner,
                 repo=config.github.repo,
             )
+            await github_connector.authenticate()
             event_bridge.register_parser("github", github_connector.get_event_parser())
 
         webhook_server = WebhookServer(
