@@ -113,3 +113,20 @@ class SkillEngineInterface(ABC):
     def register(self, skill_id: str, name: str, description: str,
                  handler: Any, risk_level: str = "low") -> None:
         ...
+
+
+class ConnectorInterface(ABC):
+    """Consumed by Integration Layer. External service connector contract."""
+
+    @property
+    @abstractmethod
+    def service_name(self) -> str: ...
+
+    @abstractmethod
+    async def authenticate(self, ctx: ExecutionContext | None = None) -> None: ...
+
+    @abstractmethod
+    async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]: ...

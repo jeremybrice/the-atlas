@@ -69,6 +69,23 @@ class ReactiveConfig:
 
 
 @dataclass
+class WebhookConfig:
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8484
+    webhook_path_prefix: str = "/webhooks"
+    dashboard_enabled: bool = False
+    secrets: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class GitHubConfig:
+    token: str = ""
+    owner: str = ""
+    repo: str = ""
+
+
+@dataclass
 class AtlasConfig:
     data_dir: str = "~/.atlas"
     log_level: str = "INFO"
@@ -81,6 +98,8 @@ class AtlasConfig:
     observation: ObservationConfig = field(default_factory=ObservationConfig)
     reactive: ReactiveConfig = field(default_factory=ReactiveConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
+    webhook: WebhookConfig = field(default_factory=WebhookConfig)
+    github: GitHubConfig = field(default_factory=GitHubConfig)
 
 
 _SECTION_MAP = {
@@ -93,6 +112,8 @@ _SECTION_MAP = {
     "observation": ObservationConfig,
     "reactive": ReactiveConfig,
     "mcp": MCPConfig,
+    "webhook": WebhookConfig,
+    "github": GitHubConfig,
 }
 
 

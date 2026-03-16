@@ -242,6 +242,7 @@ class ObservationEvent:
     event_id: str = field(default_factory=new_id)
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     priority: int = 5
+    correlation_id: str = field(default_factory=new_id)
 
 
 @dataclass

@@ -71,6 +71,28 @@ async def test_daemon_loop_shutdown_command():
     await task  # should exit cleanly
 
 
+async def test_daemon_loop_status_includes_http_running():
+    tmpdir = tempfile.mkdtemp()
+    socket_path = f"{tmpdir}/t.sock"
+    pid_path = f"{tmpdir}/t.pid"
+    executor = AsyncMock()
+
+    loop = DaemonLoop(socket_path=socket_path, pid_path=pid_path, goal_executor=executor)
+    task = asyncio.create_task(loop.start())
+    await asyncio.sleep(0.1)
+
+    try:
+        from atlas.daemon.protocol import DaemonSocketClient
+        client = DaemonSocketClient(socket_path)
+        resp = await client.send(DaemonCommand(command="status"))
+        assert resp["status"] == "ok"
+        assert "http_running" in resp["payload"]
+        assert resp["payload"]["http_running"] is False  # no http_app configured
+    finally:
+        await loop.stop()
+        await task
+
+
 async def test_daemon_loop_accepts_mcp_bridge():
     """DaemonLoop should accept an optional MCPBridge and MCP servers config."""
     mock_bridge = MagicMock()

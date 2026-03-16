@@ -370,12 +370,55 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     await obs_engine.start()
 
+    # Set up webhook + dashboard HTTP server if enabled
+    http_app = None
+    if config.webhook.enabled:
+        from atlas.integrations.event_bridge import EventBridge
+        from atlas.integrations.webhook import WebhookServer
+        from atlas.integrations.dashboard import DashboardServer
+
+        event_bridge = EventBridge()
+
+        # Register GitHub event parser if configured
+        if config.github.token:
+            from atlas.integrations.connectors.github import GitHubConnector
+            github_connector = GitHubConnector(
+                token=config.github.token,
+                owner=config.github.owner,
+                repo=config.github.repo,
+            )
+            await github_connector.authenticate()
+            event_bridge.register_parser("github", github_connector.get_event_parser())
+
+        webhook_server = WebhookServer(
+            event_bridge=event_bridge,
+            event_callback=obs_engine.on_event,
+            webhook_path_prefix=config.webhook.webhook_path_prefix,
+            secrets=config.webhook.secrets,
+        )
+        http_app = webhook_server.create_app()
+
+        if config.webhook.dashboard_enabled:
+            dashboard_server = DashboardServer(
+                db=db,
+                audit=audit,
+                registry=registry,
+                goal_handler=goal_executor,
+            )
+            dashboard_app = dashboard_server.create_app()
+            for resource in dashboard_app.router.resources():
+                for route in resource:
+                    http_app.router.add_route(route.method, resource.canonical, route.handler)
+
     daemon_loop = DaemonLoop(
         socket_path=socket_path,
         pid_path=pid_path,
         goal_executor=goal_executor,
         mcp_bridge=mcp_bridge,
         mcp_servers=config.mcp.servers,
+        http_app=http_app,
+        http_host=config.webhook.host,
+        http_port=config.webhook.port,
     )
 
     try:

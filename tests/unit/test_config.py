@@ -34,3 +34,13 @@ def test_mcp_config_defaults():
 def test_webhook_event_type():
     from atlas.contracts.types import EventType
     assert EventType.WEBHOOK == "webhook"
+
+
+def test_webhook_config_defaults():
+    from atlas.config import WebhookConfig
+    cfg = WebhookConfig()
+    assert cfg.enabled is False
+    assert cfg.host == "127.0.0.1"
+    assert cfg.port == 8484
+    assert cfg.webhook_path_prefix == "/webhooks"
+    assert cfg.dashboard_enabled is False

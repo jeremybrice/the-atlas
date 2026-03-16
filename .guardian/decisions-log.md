@@ -1,7 +1,7 @@
 # Decisions Log
 
-**Mission:** Phase 3 Stage A — Trust Escalation + MCP Bridge + Credential Vault
-**Started:** 2026-03-13
+**Mission:** Phase 3 Stage B — GitHub Connector + Webhook Ingestion + Dashboard API
+**Started:** 2026-03-14
 
 ---
 

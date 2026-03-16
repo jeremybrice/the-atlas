@@ -54,3 +54,15 @@ reactive:
 mcp:
   enabled: true
   servers: []
+
+webhook:
+  enabled: false
+  host: "127.0.0.1"
+  port: 8484
+  webhook_path_prefix: "/webhooks"
+  dashboard_enabled: false
+
+github:
+  token: ""
+  owner: ""
+  repo: ""
