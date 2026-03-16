@@ -27,7 +27,7 @@ class ObservationEngine:
         watcher = FilesystemWatcher(
             watch_path=path,
             patterns=patterns,
-            callback=self._on_event,
+            callback=self.on_event,
             debounce_seconds=debounce_seconds,
         )
         self._watchers.append(watcher)
@@ -39,7 +39,7 @@ class ObservationEngine:
             name=name,
             interval_seconds=interval_seconds,
             goal_template=goal_template,
-            callback=self._on_event,
+            callback=self.on_event,
         )
         self._schedulers.append(trigger)
 
@@ -59,7 +59,7 @@ class ObservationEngine:
         for s in self._schedulers:
             await s.stop()
 
-    async def _on_event(self, event: ObservationEvent) -> None:
+    async def on_event(self, event: ObservationEvent) -> None:
         goals = self._router.match(event)
         for goal in goals:
             logger.info("Reactive goal triggered: %s (from %s)", goal, event.source)
