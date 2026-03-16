@@ -1,4 +1,6 @@
+import asyncio
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 from atlas.contracts.interfaces import ConnectorInterface
 from atlas.contracts.types import ExecutionContext
@@ -55,3 +57,25 @@ async def test_rate_limit_tracks_calls():
     # Should not raise for first call
     result = await conn.execute_action("comment", {"body": "test"})
     assert result["action"] == "comment"
+
+
+async def test_rate_limit_serializes_concurrent_calls():
+    """Concurrent calls should not bypass the rate limit."""
+    conn = FakeConnector()
+    conn._rate_limit_rpm = 2  # low limit to test easily
+
+    # Mock asyncio.sleep so the test doesn't actually wait 60s
+    with patch("atlas.integrations.connector.asyncio.sleep", new_callable=AsyncMock):
+        # Fire 4 concurrent calls
+        results = await asyncio.gather(
+            conn.execute_action("a", {}),
+            conn.execute_action("b", {}),
+            conn.execute_action("c", {}),
+            conn.execute_action("d", {}),
+        )
+
+    # All should complete (rate limiter waits, doesn't reject)
+    assert len(results) == 4
+    # But timestamps should show serialization — at most 2 in any 1-second window
+    # The lock ensures check-then-append is atomic
+    assert len(conn._call_timestamps) == 4

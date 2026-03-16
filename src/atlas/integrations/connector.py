@@ -22,6 +22,7 @@ class ConnectorABC(ConnectorInterface):
         self._service_name = service_name
         self._rate_limit_rpm = rate_limit_rpm
         self._call_timestamps: list[float] = []
+        self._rate_limit_lock = asyncio.Lock()
 
     @property
     def service_name(self) -> str:
@@ -44,16 +45,17 @@ class ConnectorABC(ConnectorInterface):
 
     async def _check_rate_limit(self) -> None:
         """Wait if rate limit would be exceeded."""
-        now = time.monotonic()
-        window = 60.0  # 1 minute window
-        # Prune old timestamps
-        self._call_timestamps = [t for t in self._call_timestamps if now - t < window]
-        if len(self._call_timestamps) >= self._rate_limit_rpm:
-            wait_time = window - (now - self._call_timestamps[0])
-            if wait_time > 0:
-                logger.warning(
-                    "%s rate limit reached (%d rpm), waiting %.1fs",
-                    self._service_name, self._rate_limit_rpm, wait_time,
-                )
-                await asyncio.sleep(wait_time)
-        self._call_timestamps.append(time.monotonic())
+        async with self._rate_limit_lock:
+            now = time.monotonic()
+            window = 60.0  # 1 minute window
+            # Prune old timestamps
+            self._call_timestamps = [t for t in self._call_timestamps if now - t < window]
+            if len(self._call_timestamps) >= self._rate_limit_rpm:
+                wait_time = window - (now - self._call_timestamps[0])
+                if wait_time > 0:
+                    logger.warning(
+                        "%s rate limit reached (%d rpm), waiting %.1fs",
+                        self._service_name, self._rate_limit_rpm, wait_time,
+                    )
+                    await asyncio.sleep(wait_time)
+            self._call_timestamps.append(time.monotonic())
