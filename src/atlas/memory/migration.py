@@ -61,7 +61,7 @@ class VectorMigration:
 
         # Batch embed
         texts = [self._provider.compose_episode_text(ep) for ep in unembedded]
-        embeddings = self._provider.embed_batch(texts)
+        embeddings = await self._provider.embed_batch(texts)
 
         if not embeddings:
             logger.warning("Embedding API returned no results — migration will retry on next startup")
@@ -70,6 +70,10 @@ class VectorMigration:
         ids = [ep.episode_id for ep in unembedded[: len(embeddings)]]
         await self._vector_store.store_batch(ids, embeddings)
         logger.info("Migrated %d episodes to vector store", len(embeddings))
+
+        if len(embeddings) < len(unembedded):
+            logger.warning("Partial batch: %d/%d embedded — migration will retry on next startup", len(embeddings), len(unembedded))
+            return len(embeddings)
 
         await self._mark_complete()
         return len(embeddings)

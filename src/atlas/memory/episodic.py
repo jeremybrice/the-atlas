@@ -56,7 +56,7 @@ class EpisodicMemoryStore:
         if self._embedding_provider and self._vector_store:
             try:
                 text = self._embedding_provider.compose_episode_text(episode)
-                embedding = self._embedding_provider.embed(text)
+                embedding = await self._embedding_provider.embed(text)
                 if embedding is not None:
                     await self._vector_store.store(episode.episode_id, embedding)
                 else:

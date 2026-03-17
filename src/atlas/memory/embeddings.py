@@ -19,30 +19,30 @@ class EmbeddingProvider:
 
     def __init__(self, api_key: str, model: str = "voyage-3-lite"):
         self._model = model
-        self._client = voyageai.Client(api_key=api_key)
+        self._client = voyageai.AsyncClient(api_key=api_key)
 
-    def embed(self, text: str) -> np.ndarray | None:
+    async def embed(self, text: str) -> np.ndarray | None:
         """Embed a single text for storage (document input type). Returns None on error."""
         try:
-            result = self._client.embed([text], model=self._model, input_type="document")
+            result = await self._client.embed([text], model=self._model, input_type="document")
             return np.array(result.embeddings[0], dtype=np.float32)
         except Exception as e:
             logger.warning("Embedding failed: %s", e)
             return None
 
-    def embed_query(self, text: str) -> np.ndarray | None:
+    async def embed_query(self, text: str) -> np.ndarray | None:
         """Embed a query for search (query input type). Returns None on error."""
         try:
-            result = self._client.embed([text], model=self._model, input_type="query")
+            result = await self._client.embed([text], model=self._model, input_type="query")
             return np.array(result.embeddings[0], dtype=np.float32)
         except Exception as e:
             logger.warning("Query embedding failed: %s", e)
             return None
 
-    def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
+    async def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
         """Embed multiple texts for storage. Returns empty list on error."""
         try:
-            result = self._client.embed(texts, model=self._model, input_type="document")
+            result = await self._client.embed(texts, model=self._model, input_type="document")
             return [np.array(e, dtype=np.float32) for e in result.embeddings]
         except Exception as e:
             logger.warning("Batch embedding failed: %s", e)

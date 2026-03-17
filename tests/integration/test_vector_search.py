@@ -1,7 +1,7 @@
 """Integration test: record episode -> embed -> search semantically -> correct episode surfaces."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
@@ -32,17 +32,20 @@ async def pipeline(tmp_path: Path):
         "refactor": np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
     }
 
-    def mock_embed(text):
+    def _resolve_embedding(text):
         for keyword, vec in embedding_map.items():
             if keyword in text.lower():
                 return vec
         return np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32)
 
-    def mock_embed_query(text):
-        return mock_embed(text)
+    async def mock_embed(text):
+        return _resolve_embedding(text)
 
-    def mock_embed_batch(texts):
-        return [mock_embed(t) for t in texts]
+    async def mock_embed_query(text):
+        return _resolve_embedding(text)
+
+    async def mock_embed_batch(texts):
+        return [_resolve_embedding(t) for t in texts]
 
     def mock_compose(episode):
         return f"{episode.trigger} {episode.plan} {episode.outcome}"
@@ -69,7 +72,7 @@ async def test_record_and_semantic_search(pipeline):
     await episodic.record(Episode(trigger="debug memory leak", plan="profile heap", outcome="fixed"))
 
     # Search semantically for deployment-related episodes
-    query_vec = provider.embed_query("deploy to production")
+    query_vec = await provider.embed_query("deploy to production")
     results = await vector_store.search(query_vec, limit=3)
 
     # The deploy episode should be the top result
@@ -94,7 +97,7 @@ async def test_hybrid_retrieval_end_to_end(pipeline):
     keyword_scores = dict(keyword_results)
 
     # Semantic search
-    query_vec = provider.embed_query("deploy")
+    query_vec = await provider.embed_query("deploy")
     semantic_results = await vector_store.search(query_vec, limit=10)
     semantic_scores = dict(semantic_results)
 
@@ -130,7 +133,7 @@ async def test_migration_then_search(pipeline):
     assert await vector_store.count() == 2
 
     # Now semantic search should work
-    query_vec = provider.embed_query("deploy")
+    query_vec = await provider.embed_query("deploy")
     results = await vector_store.search(query_vec, limit=2)
     assert len(results) == 2
     assert results[0][1] > results[1][1]  # deploy episode ranked higher
@@ -142,7 +145,7 @@ async def test_graceful_degradation_keyword_only(tmp_path):
     await db.initialize()
 
     failing_provider = MagicMock(spec=EmbeddingProvider)
-    failing_provider.embed.return_value = None
+    failing_provider.embed = AsyncMock(return_value=None)
     failing_provider.compose_episode_text.return_value = "test text"
 
     vector_store = VectorStore(db, model="voyage-3-lite")
