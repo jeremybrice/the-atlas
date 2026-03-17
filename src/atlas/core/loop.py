@@ -8,6 +8,7 @@ from atlas.contracts.types import (
     ApprovalRequest,
     ApprovalResult,
     AuditEntry,
+    ContextQuery,
     Episode,
     EpisodeType,
     ExecutionContext,
@@ -16,6 +17,7 @@ from atlas.contracts.types import (
     ProposedAction,
     TaskStatus,
 )
+from atlas.memory.retrieval import ContextAssembler
 from atlas.control.approval import ApprovalWorkflow
 from atlas.control.audit import AuditLogger
 from atlas.control.policy import PolicyEngine
@@ -64,6 +66,12 @@ class ExecutionLoop:
         episodic_memory: EpisodicMemoryStore,
         forge=None,
         max_replans: int = 2,
+        context_assembler: ContextAssembler | None = None,
+        embedding_provider=None,
+        vector_store=None,
+        search_limit: int = 50,
+        semantic_weight: float = 0.6,
+        keyword_weight: float = 0.4,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -75,12 +83,69 @@ class ExecutionLoop:
         self._episodic = episodic_memory
         self._forge = forge
         self._max_replans = max_replans
+        self._context_assembler = context_assembler
+        self._embedding_provider = embedding_provider
+        self._vector_store = vector_store
+        self._search_limit = search_limit
+        self._semantic_weight = semantic_weight
+        self._keyword_weight = keyword_weight
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
         ctx = ExecutionContext.new(mission_id=mission.mission_id)
         actions_log: list[dict] = []
         replans_remaining = self._max_replans
+
+        # Retrieve episodic context if assembler is available
+        context_text = ""
+        if self._context_assembler:
+            try:
+                query = ContextQuery(
+                    purpose="planning",
+                    task_description=mission.goal_text,
+                    token_budget=4000,
+                )
+
+                if self._embedding_provider and self._vector_store:
+                    # Hybrid path: combine keyword + semantic scores
+                    keyword_results = await self._episodic.search_scored(
+                        mission.goal_text, limit=self._search_limit,
+                    )
+                    keyword_scores = dict(keyword_results)
+
+                    query_embedding = await self._embedding_provider.embed_query(mission.goal_text)
+                    if query_embedding is not None:
+                        semantic_results = await self._vector_store.search(
+                            query_embedding, limit=self._search_limit,
+                        )
+                        semantic_scores = dict(semantic_results)
+                    else:
+                        semantic_scores = {}
+
+                    merged = self._context_assembler.merge_scores(
+                        keyword_scores, semantic_scores,
+                        semantic_weight=self._semantic_weight,
+                        keyword_weight=self._keyword_weight,
+                    )
+                    all_ids = set(keyword_scores) | set(semantic_scores)
+                    episodes_by_id = {}
+                    for eid in all_ids:
+                        ep = await self._episodic.get_by_id(eid)
+                        if ep:
+                            episodes_by_id[eid] = ep
+
+                    bundle = self._context_assembler.assemble_ranked(query, episodes_by_id, merged)
+                    logger.info("Assembled %d tokens of hybrid context (%d keyword, %d semantic)",
+                                bundle.total_tokens, len(keyword_scores), len(semantic_scores))
+                else:
+                    # Fallback: recency-based retrieval
+                    recent_episodes = await self._episodic.query_recent(limit=50)
+                    bundle = self._context_assembler.assemble(query, recent_episodes)
+
+                if bundle.contents:
+                    context_text = "\n\n".join(c["text"] for c in bundle.contents)
+            except Exception as e:
+                logger.warning("Context assembly failed, proceeding without: %s", e)
 
         total = len(mission.tasks)
         i = 0
@@ -111,7 +176,7 @@ class ExecutionLoop:
                     error=task.error or "unknown",
                     remaining_tasks=remaining_descs,
                     skills=skills_desc,
-                    context="",
+                    context=context_text,
                 )
                 try:
                     response = await self._env.claude_oneshot(

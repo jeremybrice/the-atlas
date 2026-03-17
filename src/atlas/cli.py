@@ -27,6 +27,7 @@ from atlas.env.facade import EnvironmentFacade
 from atlas.env.filesystem import FilesystemProvider
 from atlas.env.process import ProcessProvider
 from atlas.memory.episodic import EpisodicMemoryStore
+from atlas.memory.retrieval import ContextAssembler
 from atlas.memory.store import DatabaseStore
 from atlas.memory.working import WorkingMemoryStore
 from atlas.observation.engine import ObservationEngine
@@ -158,6 +159,45 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
+    # Initialize vector search components if enabled
+    context_assembler = ContextAssembler()
+    vs_embedding_provider = None
+    vs_vector_store = None
+
+    if config.memory.vector_search.enabled:
+        try:
+            from atlas.memory.embeddings import EmbeddingProvider
+            from atlas.memory.migration import VectorMigration
+            from atlas.memory.vector_store import VectorStore
+
+            api_key = os.environ.get("VOYAGE_API_KEY")
+            if not api_key:
+                raise ValueError("VOYAGE_API_KEY environment variable not set")
+
+            vs_embedding_provider = EmbeddingProvider(
+                api_key=api_key, model=config.memory.vector_search.model,
+            )
+            vs_vector_store = VectorStore(db, model=config.memory.vector_search.model)
+
+            # Update episodic store with embedding components
+            episodic = EpisodicMemoryStore(
+                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
+            )
+
+            # Run migration if needed
+            migration = VectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
+            if not await migration.is_complete():
+                click.echo("[vector-search] Migrating existing episodes...")
+                count = await migration.run()
+                if count:
+                    click.echo(f"[vector-search] Embedded {count} episodes")
+
+            click.echo("[vector-search] Semantic search enabled")
+        except Exception as e:
+            vs_embedding_provider = None
+            vs_vector_store = None
+            click.echo(f"[vector-search] Disabled: {e}", err=True)
+
     # Initialize forge if enabled
     forge = None
     if config.skills.forge_enabled:
@@ -179,6 +219,12 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         working_memory=working,
         episodic_memory=episodic,
         forge=forge,
+        context_assembler=context_assembler,
+        embedding_provider=vs_embedding_provider,
+        vector_store=vs_vector_store,
+        search_limit=config.memory.vector_search.search_limit,
+        semantic_weight=config.memory.vector_search.semantic_weight,
+        keyword_weight=config.memory.vector_search.keyword_weight,
     )
 
     try:
@@ -305,6 +351,41 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
+    # Initialize vector search components if enabled
+    context_assembler = ContextAssembler()
+    vs_embedding_provider = None
+    vs_vector_store = None
+
+    if config.memory.vector_search.enabled:
+        try:
+            from atlas.memory.embeddings import EmbeddingProvider as DaemonEmbeddingProvider
+            from atlas.memory.migration import VectorMigration as DaemonVectorMigration
+            from atlas.memory.vector_store import VectorStore as DaemonVectorStore
+
+            api_key = os.environ.get("VOYAGE_API_KEY")
+            if not api_key:
+                raise ValueError("VOYAGE_API_KEY environment variable not set")
+
+            vs_embedding_provider = DaemonEmbeddingProvider(
+                api_key=api_key, model=config.memory.vector_search.model,
+            )
+            vs_vector_store = DaemonVectorStore(db, model=config.memory.vector_search.model)
+
+            episodic = EpisodicMemoryStore(
+                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
+            )
+
+            migration = DaemonVectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
+            if not await migration.is_complete():
+                click.echo("[vector-search] Migrating existing episodes...")
+                await migration.run()
+
+            click.echo("[vector-search] Semantic search enabled (daemon)")
+        except Exception as e:
+            vs_embedding_provider = None
+            vs_vector_store = None
+            click.echo(f"[vector-search] Disabled in daemon: {e}", err=True)
+
     forge = None
     if config.skills.forge_enabled:
         forge = SkillForge(
@@ -330,6 +411,12 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         working_memory=working,
         episodic_memory=episodic,
         forge=forge,
+        context_assembler=context_assembler,
+        embedding_provider=vs_embedding_provider,
+        vector_store=vs_vector_store,
+        search_limit=config.memory.vector_search.search_limit,
+        semantic_weight=config.memory.vector_search.semantic_weight,
+        keyword_weight=config.memory.vector_search.keyword_weight,
     )
 
     async def goal_executor(goal_text: str) -> dict:

@@ -28,6 +28,9 @@ class DatabaseStore:
         return self._db
 
     async def _create_tables(self) -> None:
+        # Migrate FTS5 table if it exists with old schema (missing lessons column)
+        await self._migrate_fts5()
+
         await self._db.executescript("""
             CREATE TABLE IF NOT EXISTS episodes (
                 episode_id TEXT PRIMARY KEY,
@@ -49,13 +52,16 @@ class DatabaseStore:
                 trigger_text,
                 plan,
                 outcome,
+                lessons,
                 content=episodes,
                 content_rowid=rowid
             );
 
-            CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes BEGIN
-                INSERT INTO episodes_fts(episode_id, trigger_text, plan, outcome)
-                VALUES (new.episode_id, new.trigger_text, new.plan, new.outcome);
+            DROP TRIGGER IF EXISTS episodes_ai;
+
+            CREATE TRIGGER episodes_ai AFTER INSERT ON episodes BEGIN
+                INSERT INTO episodes_fts(episode_id, trigger_text, plan, outcome, lessons)
+                VALUES (new.episode_id, new.trigger_text, new.plan, new.outcome, new.lessons);
             END;
 
             CREATE TABLE IF NOT EXISTS audit_log (
@@ -135,5 +141,51 @@ class DatabaseStore:
 
             CREATE INDEX IF NOT EXISTS idx_entity_atlas
                 ON entity_mappings(atlas_type, atlas_id);
+
+            CREATE TABLE IF NOT EXISTS episode_embeddings (
+                episode_id TEXT PRIMARY KEY REFERENCES episodes(episode_id),
+                embedding BLOB NOT NULL,
+                model TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
         """)
         await self._db.commit()
+        await self._rebuild_fts5()
+
+    async def _migrate_fts5(self) -> None:
+        """Drop and recreate FTS5 table if it exists with old schema (missing lessons column)."""
+        cursor = await self._db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='episodes_fts'"
+        )
+        if not await cursor.fetchone():
+            return  # table doesn't exist yet, _create_tables will create it
+
+        # Check if lessons column exists in the FTS5 table
+        cursor = await self._db.execute("PRAGMA table_info(episodes_fts)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "lessons" in columns:
+            return  # already has lessons column
+
+        # Drop old FTS5 table and trigger — they'll be recreated by _create_tables
+        await self._db.executescript("""
+            DROP TRIGGER IF EXISTS episodes_ai;
+            DROP TABLE IF EXISTS episodes_fts;
+        """)
+        await self._db.commit()
+        self._fts5_needs_rebuild = True
+
+    async def _rebuild_fts5(self) -> None:
+        """Rebuild FTS5 index from episodes table after schema migration."""
+        if not getattr(self, "_fts5_needs_rebuild", False):
+            return
+        await self._db.execute(
+            "INSERT INTO episodes_fts(episodes_fts) VALUES('rebuild')"
+        )
+        await self._db.commit()
+        self._fts5_needs_rebuild = False

@@ -31,9 +31,44 @@ class ContextAssembler:
         if not episodes and not procedures:
             return ContextBundle(budget_tokens=query.token_budget)
 
-        # Sort episodes based on purpose
         sorted_episodes = self._sort_for_purpose(query.purpose, episodes)
+        return self._assemble_episodes(query, sorted_episodes, procedures)
 
+    def merge_scores(
+        self,
+        keyword_scores: dict[str, float],
+        semantic_scores: dict[str, float],
+        semantic_weight: float = 0.6,
+        keyword_weight: float = 0.4,
+    ) -> dict[str, float]:
+        """Merge keyword and semantic scores into a single ranked score per episode."""
+        all_ids = set(keyword_scores) | set(semantic_scores)
+        merged = {}
+        for eid in all_ids:
+            kw = keyword_scores.get(eid, 0.0) * keyword_weight
+            sem = semantic_scores.get(eid, 0.0) * semantic_weight
+            merged[eid] = kw + sem
+        return merged
+
+    def assemble_ranked(
+        self,
+        query: ContextQuery,
+        episodes_by_id: dict[str, Episode],
+        scores: dict[str, float],
+        procedures: list[Procedure] | None = None,
+    ) -> ContextBundle:
+        """Assemble context from episodes ranked by pre-computed scores."""
+        ranked_ids = sorted(scores, key=scores.get, reverse=True)
+        ranked_episodes = [episodes_by_id[eid] for eid in ranked_ids if eid in episodes_by_id]
+        return self._assemble_episodes(query, ranked_episodes, procedures)
+
+    def _assemble_episodes(
+        self,
+        query: ContextQuery,
+        episodes: list[Episode],
+        procedures: list[Procedure] | None = None,
+    ) -> ContextBundle:
+        """Core assembly logic shared by assemble() and assemble_ranked()."""
         contents: list[dict] = []
         total_tokens = 0
 
@@ -52,14 +87,13 @@ class ContextAssembler:
                 })
                 total_tokens += tokens
 
-        for episode in sorted_episodes:
+        for episode in episodes:
             text = self._episode_to_text(episode)
             tokens = self.estimate_tokens(text)
 
             if total_tokens + tokens > query.token_budget:
-                # Try to fit a truncated version
                 remaining = query.token_budget - total_tokens
-                if remaining > 20:  # worth including something
+                if remaining > 20:
                     truncated = text[: remaining * self.CHARS_PER_TOKEN]
                     contents.append({
                         "source": episode.trigger,
@@ -86,12 +120,12 @@ class ContextAssembler:
 
     def _sort_for_purpose(self, purpose: str, episodes: list[Episode]) -> list[Episode]:
         if purpose == "reflection":
-            # Failed episodes first, then successful
+            # Failed episodes first, then successful (most recent within each group)
             failed = [e for e in episodes if e.outcome == "failed"]
             others = [e for e in episodes if e.outcome != "failed"]
-            return list(reversed(failed)) + list(reversed(others))
-        # Default: most recent first
-        return list(reversed(episodes))
+            return failed + others
+        # Default: preserve input order (most recent first from query_recent)
+        return list(episodes)
 
     def _episode_to_text(self, episode: Episode) -> str:
         parts = []

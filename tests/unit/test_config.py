@@ -44,3 +44,35 @@ def test_webhook_config_defaults():
     assert cfg.port == 8484
     assert cfg.webhook_path_prefix == "/webhooks"
     assert cfg.dashboard_enabled is False
+
+
+def test_vector_search_config_defaults():
+    from atlas.config import VectorSearchConfig
+    cfg = VectorSearchConfig()
+    assert cfg.enabled is False
+    assert cfg.model == "voyage-3-lite"
+    assert cfg.semantic_weight == 0.6
+    assert cfg.keyword_weight == 0.4
+    assert cfg.search_limit == 50
+
+
+def test_vector_search_nested_in_memory_config():
+    from atlas.config import MemoryConfig, VectorSearchConfig
+    cfg = MemoryConfig()
+    assert isinstance(cfg.vector_search, VectorSearchConfig)
+    assert cfg.vector_search.enabled is False
+
+
+def test_load_config_with_vector_search_override(tmp_path):
+    config_file = tmp_path / "custom.yaml"
+    config_file.write_text("""
+memory:
+  vector_search:
+    enabled: true
+    model: "voyage-3-lite"
+    semantic_weight: 0.7
+""")
+    config = load_config(str(config_file))
+    assert config.memory.vector_search.enabled is True
+    assert config.memory.vector_search.semantic_weight == 0.7
+    assert config.memory.vector_search.keyword_weight == 0.4  # default preserved

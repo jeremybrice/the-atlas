@@ -28,6 +28,12 @@ memory:
   episode_retention_days: 90
   context_default_token_budget: 4000
   pattern_extraction_interval_minutes: 30
+  vector_search:
+    enabled: false
+    model: "voyage-3-lite"
+    semantic_weight: 0.6
+    keyword_weight: 0.4
+    search_limit: 50
 
 skills:
   seed_skills:

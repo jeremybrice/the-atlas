@@ -29,11 +29,21 @@ class TrustConfig:
 
 
 @dataclass
+class VectorSearchConfig:
+    enabled: bool = False
+    model: str = "voyage-3-lite"
+    semantic_weight: float = 0.6
+    keyword_weight: float = 0.4
+    search_limit: int = 50
+
+
+@dataclass
 class MemoryConfig:
     working_memory_max_keys: int = 100
     episode_retention_days: int = 90
     context_default_token_budget: int = 4000
     pattern_extraction_interval_minutes: int = 30
+    vector_search: VectorSearchConfig = field(default_factory=VectorSearchConfig)
 
 
 @dataclass
@@ -119,8 +129,16 @@ _SECTION_MAP = {
 
 def _merge_into_dataclass(dc_class, data: dict):
     """Create a dataclass instance from a dict, ignoring unknown keys."""
-    valid_fields = {f.name for f in dc_class.__dataclass_fields__.values()}
-    filtered = {k: v for k, v in data.items() if k in valid_fields}
+    import dataclasses
+    fields = {f.name: f for f in dataclasses.fields(dc_class)}
+    filtered = {}
+    for k, v in data.items():
+        if k in fields:
+            ft = fields[k].type
+            if isinstance(v, dict) and dataclasses.is_dataclass(ft):
+                filtered[k] = _merge_into_dataclass(ft, v)
+            else:
+                filtered[k] = v
     return dc_class(**filtered)
 
 
