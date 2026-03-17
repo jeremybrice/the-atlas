@@ -161,6 +161,8 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
     # Initialize vector search components if enabled
     context_assembler = ContextAssembler()
+    vs_embedding_provider = None
+    vs_vector_store = None
 
     if config.memory.vector_search.enabled:
         try:
@@ -172,18 +174,18 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
             if not api_key:
                 raise ValueError("VOYAGE_API_KEY environment variable not set")
 
-            embedding_provider = EmbeddingProvider(
+            vs_embedding_provider = EmbeddingProvider(
                 api_key=api_key, model=config.memory.vector_search.model,
             )
-            vector_store = VectorStore(db, model=config.memory.vector_search.model)
+            vs_vector_store = VectorStore(db, model=config.memory.vector_search.model)
 
             # Update episodic store with embedding components
             episodic = EpisodicMemoryStore(
-                db, embedding_provider=embedding_provider, vector_store=vector_store,
+                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
             )
 
             # Run migration if needed
-            migration = VectorMigration(db, episodic, vector_store, embedding_provider)
+            migration = VectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
             if not await migration.is_complete():
                 click.echo("[vector-search] Migrating existing episodes...")
                 count = await migration.run()
@@ -192,6 +194,8 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
             click.echo("[vector-search] Semantic search enabled")
         except Exception as e:
+            vs_embedding_provider = None
+            vs_vector_store = None
             click.echo(f"[vector-search] Disabled: {e}", err=True)
 
     # Initialize forge if enabled
@@ -216,6 +220,8 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         episodic_memory=episodic,
         forge=forge,
         context_assembler=context_assembler,
+        embedding_provider=vs_embedding_provider,
+        vector_store=vs_vector_store,
     )
 
     try:
@@ -344,6 +350,8 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     # Initialize vector search components if enabled
     context_assembler = ContextAssembler()
+    vs_embedding_provider = None
+    vs_vector_store = None
 
     if config.memory.vector_search.enabled:
         try:
@@ -355,22 +363,24 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
             if not api_key:
                 raise ValueError("VOYAGE_API_KEY environment variable not set")
 
-            embedding_provider = DaemonEmbeddingProvider(
+            vs_embedding_provider = DaemonEmbeddingProvider(
                 api_key=api_key, model=config.memory.vector_search.model,
             )
-            vector_store = DaemonVectorStore(db, model=config.memory.vector_search.model)
+            vs_vector_store = DaemonVectorStore(db, model=config.memory.vector_search.model)
 
             episodic = EpisodicMemoryStore(
-                db, embedding_provider=embedding_provider, vector_store=vector_store,
+                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
             )
 
-            migration = DaemonVectorMigration(db, episodic, vector_store, embedding_provider)
+            migration = DaemonVectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
             if not await migration.is_complete():
                 click.echo("[vector-search] Migrating existing episodes...")
                 await migration.run()
 
             click.echo("[vector-search] Semantic search enabled (daemon)")
         except Exception as e:
+            vs_embedding_provider = None
+            vs_vector_store = None
             click.echo(f"[vector-search] Disabled in daemon: {e}", err=True)
 
     forge = None
@@ -399,6 +409,8 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         episodic_memory=episodic,
         forge=forge,
         context_assembler=context_assembler,
+        embedding_provider=vs_embedding_provider,
+        vector_store=vs_vector_store,
     )
 
     async def goal_executor(goal_text: str) -> dict:

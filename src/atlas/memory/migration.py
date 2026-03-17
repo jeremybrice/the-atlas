@@ -59,24 +59,30 @@ class VectorMigration:
             await self._mark_complete()
             return 0
 
-        # Batch embed
-        texts = [self._provider.compose_episode_text(ep) for ep in unembedded]
-        embeddings = await self._provider.embed_batch(texts)
+        # Batch embed in chunks to respect API limits
+        batch_size = 128
+        total_embedded = 0
 
-        if not embeddings:
-            logger.warning("Embedding API returned no results — migration will retry on next startup")
-            return 0
+        for i in range(0, len(unembedded), batch_size):
+            chunk = unembedded[i : i + batch_size]
+            texts = [self._provider.compose_episode_text(ep) for ep in chunk]
+            embeddings = await self._provider.embed_batch(texts)
 
-        ids = [ep.episode_id for ep in unembedded[: len(embeddings)]]
-        await self._vector_store.store_batch(ids, embeddings)
-        logger.info("Migrated %d episodes to vector store", len(embeddings))
+            if not embeddings:
+                logger.warning("Embedding API failed on chunk %d — migration will retry on next startup", i // batch_size)
+                return total_embedded
 
-        if len(embeddings) < len(unembedded):
-            logger.warning("Partial batch: %d/%d embedded — migration will retry on next startup", len(embeddings), len(unembedded))
-            return len(embeddings)
+            ids = [ep.episode_id for ep in chunk[: len(embeddings)]]
+            await self._vector_store.store_batch(ids, embeddings)
+            total_embedded += len(embeddings)
 
+            if len(embeddings) < len(chunk):
+                logger.warning("Partial chunk: %d/%d — migration will retry on next startup", len(embeddings), len(chunk))
+                return total_embedded
+
+        logger.info("Migrated %d episodes to vector store", total_embedded)
         await self._mark_complete()
-        return len(embeddings)
+        return total_embedded
 
     async def _mark_complete(self) -> None:
         """Mark migration as complete in metadata table."""
