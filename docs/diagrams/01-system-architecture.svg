@@ -1,0 +1,286 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f0f1a"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="coreGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a2a4a"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="memGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2a1a3a"/>
+      <stop offset="100%" stop-color="#1e1530"/>
+    </linearGradient>
+    <linearGradient id="skillGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a2e1a"/>
+      <stop offset="100%" stop-color="#152515"/>
+    </linearGradient>
+    <linearGradient id="envGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e2a1a"/>
+      <stop offset="100%" stop-color="#252015"/>
+    </linearGradient>
+    <linearGradient id="ctrlGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e1a1a"/>
+      <stop offset="100%" stop-color="#251515"/>
+    </linearGradient>
+    <linearGradient id="intGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a2a3a"/>
+      <stop offset="100%" stop-color="#152030"/>
+    </linearGradient>
+    <marker id="arrowCyan" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00d4ff"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#b388ff"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#69f0ae"/>
+    </marker>
+    <marker id="arrowOrange" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ffab40"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ff5252"/>
+    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#448aff"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="600" y="45" text-anchor="middle" fill="#e0e0e0" font-size="24" font-weight="700" filter="url(#glow)">ATLAS System Architecture</text>
+  <text x="600" y="68" text-anchor="middle" fill="#888" font-size="13">Autonomous Tool-Learning Agent System</text>
+
+  <!-- ==================== AGENT CORE (Center) ==================== -->
+  <rect x="410" y="320" width="380" height="220" rx="16" fill="url(#coreGrad)" stroke="#00d4ff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="410" y="320" width="380" height="36" rx="16" fill="#00d4ff" fill-opacity="0.15"/>
+  <text x="600" y="344" text-anchor="middle" fill="#00d4ff" font-size="16" font-weight="700">Agent Core</text>
+
+  <!-- Core components -->
+  <rect x="430" y="370" width="155" height="34" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="507" y="392" text-anchor="middle" fill="#b0bec5" font-size="12">ExecutionLoop</text>
+
+  <rect x="615" y="370" width="155" height="34" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="692" y="392" text-anchor="middle" fill="#b0bec5" font-size="12">Missions</text>
+
+  <rect x="430" y="416" width="155" height="34" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="507" y="438" text-anchor="middle" fill="#b0bec5" font-size="12">TaskQueue</text>
+
+  <rect x="615" y="416" width="155" height="34" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="692" y="438" text-anchor="middle" fill="#b0bec5" font-size="12">Task Decomposition</text>
+
+  <rect x="430" y="462" width="340" height="34" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="600" y="484" text-anchor="middle" fill="#b0bec5" font-size="12">Hybrid Context Retrieval &amp; Auto-Replanning</text>
+
+  <rect x="430" y="504" width="340" height="24" rx="6" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="600" y="520" text-anchor="middle" fill="#607d8b" font-size="10">correlation_id propagation via ExecutionContext</text>
+
+  <!-- ==================== MEMORY SYSTEM (Top Left) ==================== -->
+  <rect x="20" y="90" width="340" height="260" rx="16" fill="url(#memGrad)" stroke="#b388ff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="20" y="90" width="340" height="36" rx="16" fill="#b388ff" fill-opacity="0.15"/>
+  <text x="190" y="114" text-anchor="middle" fill="#b388ff" font-size="16" font-weight="700">Memory System</text>
+
+  <rect x="40" y="140" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="160" text-anchor="middle" fill="#b0bec5" font-size="11">Working Memory</text>
+
+  <rect x="195" y="140" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="160" text-anchor="middle" fill="#b0bec5" font-size="11">Episodic Store</text>
+
+  <rect x="40" y="180" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="200" text-anchor="middle" fill="#b0bec5" font-size="11">Vector Store</text>
+
+  <rect x="195" y="180" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="200" text-anchor="middle" fill="#b0bec5" font-size="11">FTS5 Index</text>
+
+  <rect x="40" y="220" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="240" text-anchor="middle" fill="#b0bec5" font-size="11">Context Assembler</text>
+
+  <rect x="195" y="220" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="240" text-anchor="middle" fill="#b0bec5" font-size="11">Pattern Extractor</text>
+
+  <rect x="40" y="260" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="280" text-anchor="middle" fill="#b0bec5" font-size="11">Procedural Memory</text>
+
+  <rect x="195" y="260" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="280" text-anchor="middle" fill="#b0bec5" font-size="11">Vector Migration</text>
+
+  <rect x="40" y="300" width="300" height="24" rx="6" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="190" y="316" text-anchor="middle" fill="#607d8b" font-size="10">SQLite + WAL mode + Voyage AI embeddings</text>
+
+  <!-- ==================== SKILL ENGINE (Top Right) ==================== -->
+  <rect x="840" y="90" width="340" height="260" rx="16" fill="url(#skillGrad)" stroke="#69f0ae" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="840" y="90" width="340" height="36" rx="16" fill="#69f0ae" fill-opacity="0.15"/>
+  <text x="1010" y="114" text-anchor="middle" fill="#69f0ae" font-size="16" font-weight="700">Skill Engine</text>
+
+  <rect x="860" y="140" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="932" y="160" text-anchor="middle" fill="#b0bec5" font-size="11">Skill Registry</text>
+
+  <rect x="1015" y="140" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1087" y="160" text-anchor="middle" fill="#b0bec5" font-size="11">Invocation Runtime</text>
+
+  <rect x="860" y="180" width="300" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1010" y="200" text-anchor="middle" fill="#b0bec5" font-size="9">Seed Skills: file.read | file.write | file.search | shell.execute</text>
+
+  <rect x="860" y="220" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="932" y="240" text-anchor="middle" fill="#b0bec5" font-size="11">Skill Forge</text>
+
+  <rect x="1015" y="220" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1087" y="240" text-anchor="middle" fill="#b0bec5" font-size="11">Custom Loader</text>
+
+  <rect x="860" y="260" width="300" height="30" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1010" y="280" text-anchor="middle" fill="#b0bec5" font-size="11">MCP Skill Adapter (mcp.{tool_name})</text>
+
+  <rect x="860" y="300" width="300" height="24" rx="6" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="1010" y="316" text-anchor="middle" fill="#607d8b" font-size="10">Dynamic generation + validation + custom.* prefix</text>
+
+  <!-- ==================== ENVIRONMENT INTERFACE (Bottom Left) ==================== -->
+  <rect x="20" y="590" width="340" height="220" rx="16" fill="url(#envGrad)" stroke="#ffab40" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="20" y="590" width="340" height="36" rx="16" fill="#ffab40" fill-opacity="0.15"/>
+  <text x="190" y="614" text-anchor="middle" fill="#ffab40" font-size="16" font-weight="700">Environment Interface</text>
+
+  <rect x="40" y="640" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="660" text-anchor="middle" fill="#b0bec5" font-size="11">Filesystem Provider</text>
+
+  <rect x="195" y="640" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="660" text-anchor="middle" fill="#b0bec5" font-size="11">Process Provider</text>
+
+  <rect x="40" y="680" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="112" y="700" text-anchor="middle" fill="#b0bec5" font-size="11">Claude Code Bridge</text>
+
+  <rect x="195" y="680" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="267" y="700" text-anchor="middle" fill="#b0bec5" font-size="11">Environment State</text>
+
+  <rect x="40" y="720" width="300" height="30" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="190" y="740" text-anchor="middle" fill="#b0bec5" font-size="11">Environment Facade (action routing)</text>
+
+  <rect x="40" y="760" width="300" height="24" rx="6" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="190" y="776" text-anchor="middle" fill="#607d8b" font-size="10">async subprocess + Anthropic API + pathlib</text>
+
+  <!-- ==================== CONTROL PLANE (Bottom Right) ==================== -->
+  <rect x="840" y="590" width="340" height="220" rx="16" fill="url(#ctrlGrad)" stroke="#ff5252" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="840" y="590" width="340" height="36" rx="16" fill="#ff5252" fill-opacity="0.15"/>
+  <text x="1010" y="614" text-anchor="middle" fill="#ff5252" font-size="16" font-weight="700">Control Plane</text>
+
+  <rect x="860" y="640" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="932" y="660" text-anchor="middle" fill="#b0bec5" font-size="11">Policy Engine</text>
+
+  <rect x="1015" y="640" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1087" y="660" text-anchor="middle" fill="#b0bec5" font-size="11">Audit Logger</text>
+
+  <rect x="860" y="680" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="932" y="700" text-anchor="middle" fill="#b0bec5" font-size="11">Approval Workflow</text>
+
+  <rect x="1015" y="680" width="145" height="30" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1087" y="700" text-anchor="middle" fill="#b0bec5" font-size="11">Trust Tracker</text>
+
+  <rect x="860" y="720" width="300" height="30" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1010" y="740" text-anchor="middle" fill="#b0bec5" font-size="11">Risk-Based Autonomy: observe | suggest | act</text>
+
+  <rect x="860" y="760" width="300" height="24" rx="6" fill="#0d1b2a" stroke="#ff5252" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="1010" y="776" text-anchor="middle" fill="#607d8b" font-size="9">blocked paths + escalation/demotion feedback loop</text>
+
+  <!-- ==================== INTEGRATION LAYER (Bottom Center) ==================== -->
+  <rect x="410" y="590" width="380" height="222" rx="16" fill="url(#intGrad)" stroke="#448aff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="410" y="590" width="380" height="36" rx="16" fill="#448aff" fill-opacity="0.15"/>
+  <text x="600" y="614" text-anchor="middle" fill="#448aff" font-size="16" font-weight="700">Integration Layer</text>
+
+  <rect x="430" y="634" width="160" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="510" y="653" text-anchor="middle" fill="#b0bec5" font-size="11">GitHub Connector</text>
+
+  <rect x="600" y="634" width="170" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="685" y="653" text-anchor="middle" fill="#b0bec5" font-size="11">Webhook Server</text>
+
+  <rect x="430" y="670" width="160" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="510" y="689" text-anchor="middle" fill="#b0bec5" font-size="11">Dashboard API</text>
+
+  <rect x="600" y="670" width="170" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="685" y="689" text-anchor="middle" fill="#b0bec5" font-size="11">Credential Vault</text>
+
+  <rect x="430" y="706" width="160" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="510" y="725" text-anchor="middle" fill="#b0bec5" font-size="11">Entity Mapper</text>
+
+  <rect x="600" y="706" width="170" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="685" y="725" text-anchor="middle" fill="#b0bec5" font-size="11">Event Bridge</text>
+
+  <rect x="430" y="742" width="340" height="28" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="600" y="761" text-anchor="middle" fill="#b0bec5" font-size="11">MCP Bridge (external server tool registration)</text>
+
+  <rect x="430" y="778" width="340" height="24" rx="6" fill="#0d1b2a" stroke="#448aff" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="600" y="794" text-anchor="middle" fill="#607d8b" font-size="10">aiohttp + Fernet encryption + HMAC-SHA256 verification</text>
+
+  <!-- ==================== CONNECTION ARROWS ==================== -->
+
+  <!-- Core → Memory (context retrieval) -->
+  <path d="M 410 400 C 370 400 370 250 360 250" fill="none" stroke="#b388ff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowPurple)" opacity="0.7"/>
+  <text x="365" y="380" text-anchor="end" fill="#b388ff" font-size="9" opacity="0.8">context</text>
+
+  <!-- Core → Skills (invoke) -->
+  <path d="M 790 400 C 830 400 830 250 840 250" fill="none" stroke="#69f0ae" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowGreen)" opacity="0.7"/>
+  <text x="835" y="380" text-anchor="start" fill="#69f0ae" font-size="9" opacity="0.8">invoke</text>
+
+  <!-- Core → Environment (execute) -->
+  <path d="M 480 540 C 480 570 300 570 300 590" fill="none" stroke="#ffab40" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowOrange)" opacity="0.7"/>
+  <text x="380" y="572" text-anchor="middle" fill="#ffab40" font-size="9" opacity="0.8">execute actions</text>
+
+  <!-- Core → Control (policy check) -->
+  <path d="M 720 540 C 720 570 900 570 900 590" fill="none" stroke="#ff5252" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowRed)" opacity="0.7"/>
+  <text x="820" y="572" text-anchor="middle" fill="#ff5252" font-size="9" opacity="0.8">policy check</text>
+
+  <!-- Core → Integration (connectors) -->
+  <path d="M 600 540 L 600 590" fill="none" stroke="#448aff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowBlue)" opacity="0.7"/>
+  <text x="610" y="570" text-anchor="start" fill="#448aff" font-size="9" opacity="0.8">connectors</text>
+
+  <!-- Memory → Core (episodes) -->
+  <path d="M 360 300 C 380 320 410 320 410 360" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowCyan)" opacity="0.7"/>
+  <text x="370" y="338" text-anchor="start" fill="#00d4ff" font-size="9" opacity="0.8">episodes</text>
+
+  <!-- Skills → Core (results) -->
+  <path d="M 840 300 C 820 320 790 320 790 360" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowCyan)" opacity="0.7"/>
+  <text x="825" y="338" text-anchor="end" fill="#00d4ff" font-size="9" opacity="0.8">results</text>
+
+  <!-- Control → Core (decisions) -->
+  <path d="M 950 590 C 950 560 780 560 780 540" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowCyan)" opacity="0.5"/>
+
+  <!-- ==================== CLI Entry Point (Top Center) ==================== -->
+  <rect x="460" y="90" width="280" height="50" rx="25" fill="#0d1b2a" stroke="#00d4ff" stroke-width="2" filter="url(#shadow)"/>
+  <text x="600" y="112" text-anchor="middle" fill="#00d4ff" font-size="14" font-weight="600">CLI Entry Point</text>
+  <text x="600" y="128" text-anchor="middle" fill="#607d8b" font-size="10">atlas goal | daemon | watch | vault | status</text>
+
+  <!-- CLI → Core -->
+  <line x1="600" y1="140" x2="600" y2="320" stroke="#00d4ff" stroke-width="2" marker-end="url(#arrowCyan)" opacity="0.6"/>
+
+  <!-- ==================== Contracts Box (Top Center overlay) ==================== -->
+  <rect x="420" y="200" width="360" height="40" rx="10" fill="#0d1b2a" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4,4" opacity="0.6"/>
+  <text x="600" y="216" text-anchor="middle" fill="#e0e0e0" font-size="11" font-weight="600">Contracts Layer</text>
+  <text x="600" y="232" text-anchor="middle" fill="#607d8b" font-size="9">interfaces.py | types.py | errors.py (RetriableError / FatalError)</text>
+
+  <!-- ==================== Legend ==================== -->
+  <rect x="20" y="835" width="1160" height="50" rx="8" fill="#0d1b2a" fill-opacity="0.6" stroke="#333" stroke-width="1"/>
+  <circle cx="50" cy="860" r="6" fill="#00d4ff"/>
+  <text x="62" y="864" fill="#888" font-size="10">Agent Core</text>
+  <circle cx="160" cy="860" r="6" fill="#b388ff"/>
+  <text x="172" y="864" fill="#888" font-size="10">Memory</text>
+  <circle cx="250" cy="860" r="6" fill="#69f0ae"/>
+  <text x="262" y="864" fill="#888" font-size="10">Skills</text>
+  <circle cx="330" cy="860" r="6" fill="#ffab40"/>
+  <text x="342" y="864" fill="#888" font-size="10">Environment</text>
+  <circle cx="440" cy="860" r="6" fill="#ff5252"/>
+  <text x="452" y="864" fill="#888" font-size="10">Control</text>
+  <circle cx="530" cy="860" r="6" fill="#448aff"/>
+  <text x="542" y="864" fill="#888" font-size="10">Integrations</text>
+  <line x1="640" y1="860" x2="680" y2="860" stroke="#888" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="690" y="864" fill="#888" font-size="10">Data Flow</text>
+  <rect x="770" y="852" width="14" height="14" rx="3" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="792" y="864" fill="#888" font-size="10">Cross-domain Contract</text>
+</svg>

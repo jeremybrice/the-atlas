@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 850" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f0f1a"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <marker id="arrowP" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#b388ff"/>
+    </marker>
+    <marker id="arrowC" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00d4ff"/>
+    </marker>
+    <marker id="arrowG" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#69f0ae"/>
+    </marker>
+    <marker id="arrowO" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ffab40"/>
+    </marker>
+    <marker id="arrowW" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e0e0e0"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1300" height="850" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="650" y="40" text-anchor="middle" fill="#e0e0e0" font-size="24" font-weight="700" filter="url(#glow)">Memory &amp; Retrieval Pipeline</text>
+  <text x="650" y="63" text-anchor="middle" fill="#888" font-size="13">Episode storage, hybrid search, and token-budgeted context assembly</text>
+
+  <!-- ===== TOP SECTION: STORAGE PATH (left to right) ===== -->
+  <text x="50" y="105" fill="#b388ff" font-size="16" font-weight="700" opacity="0.6">STORAGE PATH</text>
+  <line x1="50" y1="115" x2="1250" y2="115" stroke="#b388ff" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Action/Event Source -->
+  <rect x="50" y="135" width="160" height="70" rx="12" fill="#16213e" stroke="#00d4ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="130" y="162" text-anchor="middle" fill="#00d4ff" font-size="12" font-weight="600">Action Completed</text>
+  <text x="130" y="180" text-anchor="middle" fill="#b0bec5" font-size="10">trigger, plan, actions[],</text>
+  <text x="130" y="194" text-anchor="middle" fill="#b0bec5" font-size="10">outcome, lessons[], tags</text>
+
+  <!-- Arrow -->
+  <line x1="210" y1="170" x2="260" y2="170" stroke="#b388ff" stroke-width="2" marker-end="url(#arrowP)"/>
+
+  <!-- Episode Record -->
+  <rect x="260" y="130" width="180" height="80" rx="12" fill="#1e1530" stroke="#b388ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="350" y="155" text-anchor="middle" fill="#b388ff" font-size="13" font-weight="600">EpisodicMemoryStore</text>
+  <text x="350" y="173" text-anchor="middle" fill="#b0bec5" font-size="10">.record(episode)</text>
+  <text x="350" y="190" text-anchor="middle" fill="#607d8b" font-size="9">episode_id, timestamp,</text>
+  <text x="350" y="203" text-anchor="middle" fill="#607d8b" font-size="9">correlation_id, mission_id</text>
+
+  <!-- Fan out to 3 stores -->
+  <!-- Arrow to SQLite -->
+  <line x1="440" y1="145" x2="510" y2="145" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+  <!-- Arrow to FTS5 -->
+  <line x1="440" y1="170" x2="510" y2="170" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+  <!-- Arrow to Embedding -->
+  <line x1="440" y1="195" x2="510" y2="260" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+
+  <!-- SQLite episodes table -->
+  <rect x="510" y="120" width="200" height="40" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1.5"/>
+  <text x="610" y="137" text-anchor="middle" fill="#b388ff" font-size="11" font-weight="600">episodes table</text>
+  <text x="610" y="153" text-anchor="middle" fill="#607d8b" font-size="9">SQLite + WAL mode</text>
+
+  <!-- FTS5 index -->
+  <rect x="510" y="170" width="200" height="50" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1.5"/>
+  <text x="610" y="190" text-anchor="middle" fill="#b388ff" font-size="11" font-weight="600">episodes_fts (FTS5)</text>
+  <text x="610" y="206" text-anchor="middle" fill="#607d8b" font-size="9">trigger_text, plan, outcome, lessons</text>
+  <text x="610" y="216" text-anchor="middle" fill="#607d8b" font-size="8">auto-sync via INSERT trigger</text>
+
+  <!-- Embedding path -->
+  <rect x="510" y="240" width="200" height="50" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1.5"/>
+  <text x="610" y="260" text-anchor="middle" fill="#b388ff" font-size="11" font-weight="600">EmbeddingProvider</text>
+  <text x="610" y="276" text-anchor="middle" fill="#607d8b" font-size="9">Voyage AI: voyage-3-lite</text>
+  <text x="610" y="286" text-anchor="middle" fill="#607d8b" font-size="8">compose_episode_text() → embed()</text>
+
+  <!-- Arrow from embedding to vector store -->
+  <line x1="710" y1="265" x2="770" y2="265" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+
+  <!-- Vector store -->
+  <rect x="770" y="240" width="200" height="50" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1.5"/>
+  <text x="870" y="260" text-anchor="middle" fill="#b388ff" font-size="11" font-weight="600">episode_embeddings</text>
+  <text x="870" y="276" text-anchor="middle" fill="#607d8b" font-size="9">BLOB storage in SQLite</text>
+  <text x="870" y="286" text-anchor="middle" fill="#607d8b" font-size="8">episode_id, embedding, model, dims</text>
+
+  <!-- Migration note -->
+  <rect x="1020" y="240" width="230" height="50" rx="8" fill="#0d1b2a" stroke="#ffab40" stroke-width="1" stroke-dasharray="4,4" opacity="0.7"/>
+  <text x="1135" y="257" text-anchor="middle" fill="#ffab40" font-size="10" font-weight="600">VectorMigration</text>
+  <text x="1135" y="273" text-anchor="middle" fill="#607d8b" font-size="9">One-time batch embed on startup</text>
+  <text x="1135" y="286" text-anchor="middle" fill="#607d8b" font-size="8">128 episodes/batch, tracks completion</text>
+  <line x1="970" y1="265" x2="1020" y2="265" stroke="#ffab40" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+
+  <!-- ===== MIDDLE DIVIDER ===== -->
+  <text x="50" y="350" fill="#00d4ff" font-size="16" font-weight="700" opacity="0.6">RETRIEVAL PATH</text>
+  <line x1="50" y1="360" x2="1250" y2="360" stroke="#00d4ff" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Query Input -->
+  <rect x="50" y="385" width="160" height="60" rx="12" fill="#16213e" stroke="#00d4ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="130" y="410" text-anchor="middle" fill="#00d4ff" font-size="12" font-weight="600">Search Query</text>
+  <text x="130" y="428" text-anchor="middle" fill="#b0bec5" font-size="10">goal text or task context</text>
+
+  <!-- Fan out to two search paths -->
+  <!-- Arrow to FTS5 search -->
+  <line x1="210" y1="400" x2="300" y2="400" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arrowC)"/>
+  <!-- Arrow to Vector search -->
+  <line x1="210" y1="430" x2="300" y2="510" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+  <!-- PARALLEL label -->
+  <text x="255" y="470" fill="#607d8b" font-size="10" transform="rotate(-50,255,470)">parallel</text>
+
+  <!-- ===== FTS5 Search Path (top) ===== -->
+  <rect x="300" y="375" width="210" height="55" rx="10" fill="#1e1530" stroke="#b388ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="405" y="397" text-anchor="middle" fill="#b388ff" font-size="12" font-weight="600">FTS5 Keyword Search</text>
+  <text x="405" y="415" text-anchor="middle" fill="#b0bec5" font-size="10">search_scored(query)</text>
+  <text x="405" y="427" text-anchor="middle" fill="#607d8b" font-size="8">per-token quoting for MATCH safety</text>
+
+  <line x1="510" y1="402" x2="550" y2="402" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+
+  <!-- FTS5 scores -->
+  <rect x="550" y="382" width="220" height="42" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1"/>
+  <text x="660" y="400" text-anchor="middle" fill="#b388ff" font-size="11">Keyword Scores</text>
+  <text x="660" y="416" text-anchor="middle" fill="#607d8b" font-size="9">[(episode_id, score)] normalized [0,1]</text>
+
+  <!-- ===== Vector Search Path (bottom) ===== -->
+  <rect x="300" y="485" width="210" height="65" rx="10" fill="#1e1530" stroke="#b388ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="405" y="507" text-anchor="middle" fill="#b388ff" font-size="12" font-weight="600">Vector Cosine Search</text>
+  <text x="405" y="525" text-anchor="middle" fill="#b0bec5" font-size="10">embed_query() → VectorStore.search()</text>
+  <text x="405" y="543" text-anchor="middle" fill="#607d8b" font-size="8">cosine similarity over all embeddings</text>
+
+  <line x1="510" y1="517" x2="550" y2="517" stroke="#b388ff" stroke-width="1.5" marker-end="url(#arrowP)"/>
+
+  <!-- Vector scores -->
+  <rect x="550" y="497" width="220" height="42" rx="8" fill="#0d1b2a" stroke="#b388ff" stroke-width="1"/>
+  <text x="660" y="515" text-anchor="middle" fill="#b388ff" font-size="11">Semantic Scores</text>
+  <text x="660" y="531" text-anchor="middle" fill="#607d8b" font-size="9">[(episode_id, similarity)] normalized [0,1]</text>
+
+  <!-- ===== Merge Scores ===== -->
+  <line x1="770" y1="403" x2="810" y2="460" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arrowC)"/>
+  <line x1="770" y1="518" x2="810" y2="460" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#arrowC)"/>
+
+  <rect x="810" y="432" width="220" height="58" rx="12" fill="#16213e" stroke="#00d4ff" stroke-width="2" filter="url(#shadow)"/>
+  <text x="920" y="454" text-anchor="middle" fill="#00d4ff" font-size="13" font-weight="600">merge_scores()</text>
+  <text x="920" y="472" text-anchor="middle" fill="#b0bec5" font-size="10">semantic * weight + keyword * weight</text>
+  <text x="920" y="486" text-anchor="middle" fill="#607d8b" font-size="9">configurable weights in config.yaml</text>
+
+  <!-- Arrow to assembler -->
+  <line x1="1030" y1="461" x2="1080" y2="461" stroke="#00d4ff" stroke-width="2" marker-end="url(#arrowC)"/>
+
+  <!-- ===== Context Assembler ===== -->
+  <rect x="1080" y="400" width="200" height="120" rx="12" fill="#1e1530" stroke="#b388ff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="1080" y="400" width="200" height="30" rx="12" fill="#b388ff" fill-opacity="0.15"/>
+  <text x="1180" y="420" text-anchor="middle" fill="#b388ff" font-size="12" font-weight="600">ContextAssembler</text>
+  <text x="1180" y="446" text-anchor="middle" fill="#b0bec5" font-size="10">assemble_ranked()</text>
+  <text x="1180" y="466" text-anchor="middle" fill="#607d8b" font-size="9">token budget enforcement</text>
+  <text x="1180" y="482" text-anchor="middle" fill="#607d8b" font-size="9">4 chars ≈ 1 token</text>
+  <text x="1180" y="498" text-anchor="middle" fill="#607d8b" font-size="9">purpose-aware sorting</text>
+  <text x="1180" y="512" text-anchor="middle" fill="#607d8b" font-size="9">truncation marking</text>
+
+  <!-- ===== BOTTOM SECTION: Additional Memory Components ===== -->
+  <text x="50" y="600" fill="#69f0ae" font-size="16" font-weight="700" opacity="0.6">SUPPORTING COMPONENTS</text>
+  <line x1="50" y1="610" x2="1250" y2="610" stroke="#69f0ae" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Working Memory -->
+  <rect x="50" y="635" width="250" height="100" rx="12" fill="#16213e" stroke="#69f0ae" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="50" y="635" width="250" height="28" rx="12" fill="#69f0ae" fill-opacity="0.12"/>
+  <text x="175" y="655" text-anchor="middle" fill="#69f0ae" font-size="12" font-weight="600">Working Memory (LRU)</text>
+  <text x="175" y="680" text-anchor="middle" fill="#b0bec5" font-size="10">In-memory key-value store</text>
+  <text x="175" y="698" text-anchor="middle" fill="#607d8b" font-size="9">max 100 keys (configurable)</text>
+  <text x="175" y="714" text-anchor="middle" fill="#607d8b" font-size="9">set() | get() | clear() | get_all()</text>
+  <text x="175" y="728" text-anchor="middle" fill="#607d8b" font-size="8">Fast scratch space for current session</text>
+
+  <!-- Pattern Extractor -->
+  <rect x="340" y="635" width="260" height="100" rx="12" fill="#16213e" stroke="#69f0ae" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="340" y="635" width="260" height="28" rx="12" fill="#69f0ae" fill-opacity="0.12"/>
+  <text x="470" y="655" text-anchor="middle" fill="#69f0ae" font-size="12" font-weight="600">Pattern Extractor</text>
+  <text x="470" y="680" text-anchor="middle" fill="#b0bec5" font-size="10">Discovers repeated sequences</text>
+  <text x="470" y="698" text-anchor="middle" fill="#607d8b" font-size="9">find_patterns(): skill sequences (min 3x)</text>
+  <text x="470" y="714" text-anchor="middle" fill="#607d8b" font-size="9">find_recurring_failures(): repeat errors</text>
+  <text x="470" y="728" text-anchor="middle" fill="#607d8b" font-size="8">Feeds into planning context</text>
+
+  <!-- Procedural Memory -->
+  <rect x="640" y="635" width="260" height="100" rx="12" fill="#16213e" stroke="#69f0ae" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="640" y="635" width="260" height="28" rx="12" fill="#69f0ae" fill-opacity="0.12"/>
+  <text x="770" y="655" text-anchor="middle" fill="#69f0ae" font-size="12" font-weight="600">Procedural Memory</text>
+  <text x="770" y="680" text-anchor="middle" fill="#b0bec5" font-size="10">Learned workflow procedures</text>
+  <text x="770" y="698" text-anchor="middle" fill="#607d8b" font-size="9">store() | search_by_trigger()</text>
+  <text x="770" y="714" text-anchor="middle" fill="#607d8b" font-size="9">Tracks success_rate, use_count</text>
+  <text x="770" y="728" text-anchor="middle" fill="#607d8b" font-size="8">Phase 2 feature (skeleton implemented)</text>
+
+  <!-- Context Purpose Types -->
+  <rect x="940" y="635" width="310" height="100" rx="12" fill="#16213e" stroke="#00d4ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="940" y="635" width="310" height="28" rx="12" fill="#00d4ff" fill-opacity="0.12"/>
+  <text x="1095" y="655" text-anchor="middle" fill="#00d4ff" font-size="12" font-weight="600">Context Assembly Purposes</text>
+
+  <rect x="960" y="672" width="65" height="22" rx="4" fill="#0d1b2a" stroke="#00d4ff" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="992" y="688" text-anchor="middle" fill="#00d4ff" font-size="9">planning</text>
+
+  <rect x="1035" y="672" width="70" height="22" rx="4" fill="#0d1b2a" stroke="#ffab40" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="1070" y="688" text-anchor="middle" fill="#ffab40" font-size="9">reflection</text>
+
+  <rect x="1115" y="672" width="50" height="22" rx="4" fill="#0d1b2a" stroke="#69f0ae" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="1140" y="688" text-anchor="middle" fill="#69f0ae" font-size="9">forge</text>
+
+  <rect x="1175" y="672" width="55" height="22" rx="4" fill="#0d1b2a" stroke="#b388ff" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="1202" y="688" text-anchor="middle" fill="#b388ff" font-size="9">default</text>
+
+  <text x="1095" y="715" text-anchor="middle" fill="#607d8b" font-size="9">reflection: prioritizes failed episodes</text>
+  <text x="1095" y="730" text-anchor="middle" fill="#607d8b" font-size="9">planning: chronological order</text>
+
+  <!-- ===== Data Flow Summary ===== -->
+  <rect x="50" y="770" width="1200" height="60" rx="10" fill="#0d1b2a" fill-opacity="0.6" stroke="#333" stroke-width="1"/>
+  <text x="650" y="792" text-anchor="middle" fill="#e0e0e0" font-size="12" font-weight="600">Data Flow Summary</text>
+  <text x="650" y="812" text-anchor="middle" fill="#607d8b" font-size="11">Action → Episode → [SQLite + FTS5 + Vector Embedding] → Query → [Keyword + Semantic] → merge_scores() → ContextAssembler → Token-budgeted prompt context</text>
+</svg>
