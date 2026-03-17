@@ -27,6 +27,7 @@ from atlas.env.facade import EnvironmentFacade
 from atlas.env.filesystem import FilesystemProvider
 from atlas.env.process import ProcessProvider
 from atlas.memory.episodic import EpisodicMemoryStore
+from atlas.memory.retrieval import ContextAssembler
 from atlas.memory.store import DatabaseStore
 from atlas.memory.working import WorkingMemoryStore
 from atlas.observation.engine import ObservationEngine
@@ -158,6 +159,41 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
+    # Initialize vector search components if enabled
+    context_assembler = ContextAssembler()
+
+    if config.memory.vector_search.enabled:
+        try:
+            from atlas.integrations.vault import CredentialVault
+            from atlas.memory.embeddings import EmbeddingProvider
+            from atlas.memory.migration import VectorMigration
+            from atlas.memory.vector_store import VectorStore
+
+            vault = await CredentialVault.create(db=db, passphrase="atlas-default")
+            api_key = await vault.get("voyage", "api_key")
+
+            embedding_provider = EmbeddingProvider(
+                api_key=api_key, model=config.memory.vector_search.model,
+            )
+            vector_store = VectorStore(db, model=config.memory.vector_search.model)
+
+            # Update episodic store with embedding components
+            episodic = EpisodicMemoryStore(
+                db, embedding_provider=embedding_provider, vector_store=vector_store,
+            )
+
+            # Run migration if needed
+            migration = VectorMigration(db, episodic, vector_store, embedding_provider)
+            if not await migration.is_complete():
+                click.echo("[vector-search] Migrating existing episodes...")
+                count = await migration.run()
+                if count:
+                    click.echo(f"[vector-search] Embedded {count} episodes")
+
+            click.echo("[vector-search] Semantic search enabled")
+        except Exception as e:
+            click.echo(f"[vector-search] Disabled: {e}", err=True)
+
     # Initialize forge if enabled
     forge = None
     if config.skills.forge_enabled:
@@ -179,6 +215,7 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         working_memory=working,
         episodic_memory=episodic,
         forge=forge,
+        context_assembler=context_assembler,
     )
 
     try:
