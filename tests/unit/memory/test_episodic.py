@@ -57,3 +57,39 @@ async def test_query_recent(episodic_store: EpisodicMemoryStore):
 async def test_get_by_id_missing(episodic_store: EpisodicMemoryStore):
     result = await episodic_store.get_by_id("nonexistent")
     assert result is None
+
+
+async def test_episode_embeddings_table_exists(episodic_store: EpisodicMemoryStore):
+    """The episode_embeddings table should be created by initialize()."""
+    cursor = await episodic_store._db.db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='episode_embeddings'"
+    )
+    row = await cursor.fetchone()
+    assert row is not None
+
+
+async def test_metadata_table_exists(episodic_store: EpisodicMemoryStore):
+    """The metadata table should be created by initialize()."""
+    cursor = await episodic_store._db.db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='metadata'"
+    )
+    row = await cursor.fetchone()
+    assert row is not None
+
+
+async def test_search_scored_returns_scores(episodic_store: EpisodicMemoryStore):
+    await episodic_store.record(Episode(
+        trigger="deploy the application to production",
+        outcome="deployment succeeded",
+    ))
+    await episodic_store.record(Episode(
+        trigger="fix the login bug in auth module",
+        outcome="bug fixed",
+    ))
+    results = await episodic_store.search_scored("deploy", limit=10)
+    assert len(results) >= 1
+    # Returns list of (episode_id, score) tuples
+    episode_id, score = results[0]
+    assert isinstance(episode_id, str)
+    assert isinstance(score, float)
+    assert score > 0.0
