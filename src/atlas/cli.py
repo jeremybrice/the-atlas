@@ -222,6 +222,9 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         context_assembler=context_assembler,
         embedding_provider=vs_embedding_provider,
         vector_store=vs_vector_store,
+        search_limit=config.memory.vector_search.search_limit,
+        semantic_weight=config.memory.vector_search.semantic_weight,
+        keyword_weight=config.memory.vector_search.keyword_weight,
     )
 
     try:
@@ -411,6 +414,9 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         context_assembler=context_assembler,
         embedding_provider=vs_embedding_provider,
         vector_store=vs_vector_store,
+        search_limit=config.memory.vector_search.search_limit,
+        semantic_weight=config.memory.vector_search.semantic_weight,
+        keyword_weight=config.memory.vector_search.keyword_weight,
     )
 
     async def goal_executor(goal_text: str) -> dict:

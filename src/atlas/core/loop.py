@@ -69,6 +69,9 @@ class ExecutionLoop:
         context_assembler: ContextAssembler | None = None,
         embedding_provider=None,
         vector_store=None,
+        search_limit: int = 50,
+        semantic_weight: float = 0.6,
+        keyword_weight: float = 0.4,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -83,6 +86,9 @@ class ExecutionLoop:
         self._context_assembler = context_assembler
         self._embedding_provider = embedding_provider
         self._vector_store = vector_store
+        self._search_limit = search_limit
+        self._semantic_weight = semantic_weight
+        self._keyword_weight = keyword_weight
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
@@ -102,17 +108,25 @@ class ExecutionLoop:
 
                 if self._embedding_provider and self._vector_store:
                     # Hybrid path: combine keyword + semantic scores
-                    keyword_results = await self._episodic.search_scored(mission.goal_text, limit=50)
+                    keyword_results = await self._episodic.search_scored(
+                        mission.goal_text, limit=self._search_limit,
+                    )
                     keyword_scores = dict(keyword_results)
 
                     query_embedding = await self._embedding_provider.embed_query(mission.goal_text)
                     if query_embedding is not None:
-                        semantic_results = await self._vector_store.search(query_embedding, limit=50)
+                        semantic_results = await self._vector_store.search(
+                            query_embedding, limit=self._search_limit,
+                        )
                         semantic_scores = dict(semantic_results)
                     else:
                         semantic_scores = {}
 
-                    merged = self._context_assembler.merge_scores(keyword_scores, semantic_scores)
+                    merged = self._context_assembler.merge_scores(
+                        keyword_scores, semantic_scores,
+                        semantic_weight=self._semantic_weight,
+                        keyword_weight=self._keyword_weight,
+                    )
                     all_ids = set(keyword_scores) | set(semantic_scores)
                     episodes_by_id = {}
                     for eid in all_ids:

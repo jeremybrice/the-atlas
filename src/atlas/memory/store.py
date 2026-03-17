@@ -156,6 +156,7 @@ class DatabaseStore:
             );
         """)
         await self._db.commit()
+        await self._rebuild_fts5()
 
     async def _migrate_fts5(self) -> None:
         """Drop and recreate FTS5 table if it exists with old schema (missing lessons column)."""
@@ -177,3 +178,14 @@ class DatabaseStore:
             DROP TABLE IF EXISTS episodes_fts;
         """)
         await self._db.commit()
+        self._fts5_needs_rebuild = True
+
+    async def _rebuild_fts5(self) -> None:
+        """Rebuild FTS5 index from episodes table after schema migration."""
+        if not getattr(self, "_fts5_needs_rebuild", False):
+            return
+        await self._db.execute(
+            "INSERT INTO episodes_fts(episodes_fts) VALUES('rebuild')"
+        )
+        await self._db.commit()
+        self._fts5_needs_rebuild = False
