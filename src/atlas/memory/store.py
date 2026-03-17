@@ -54,7 +54,9 @@ class DatabaseStore:
                 content_rowid=rowid
             );
 
-            CREATE TRIGGER IF NOT EXISTS episodes_ai AFTER INSERT ON episodes BEGIN
+            DROP TRIGGER IF EXISTS episodes_ai;
+
+            CREATE TRIGGER episodes_ai AFTER INSERT ON episodes BEGIN
                 INSERT INTO episodes_fts(episode_id, trigger_text, plan, outcome, lessons)
                 VALUES (new.episode_id, new.trigger_text, new.plan, new.outcome, new.lessons);
             END;

@@ -164,8 +164,6 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
     if config.memory.vector_search.enabled:
         try:
-            import os
-
             from atlas.memory.embeddings import EmbeddingProvider
             from atlas.memory.migration import VectorMigration
             from atlas.memory.vector_store import VectorStore
@@ -344,6 +342,37 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
+    # Initialize vector search components if enabled
+    context_assembler = ContextAssembler()
+
+    if config.memory.vector_search.enabled:
+        try:
+            from atlas.memory.embeddings import EmbeddingProvider as DaemonEmbeddingProvider
+            from atlas.memory.migration import VectorMigration as DaemonVectorMigration
+            from atlas.memory.vector_store import VectorStore as DaemonVectorStore
+
+            api_key = os.environ.get("VOYAGE_API_KEY")
+            if not api_key:
+                raise ValueError("VOYAGE_API_KEY environment variable not set")
+
+            embedding_provider = DaemonEmbeddingProvider(
+                api_key=api_key, model=config.memory.vector_search.model,
+            )
+            vector_store = DaemonVectorStore(db, model=config.memory.vector_search.model)
+
+            episodic = EpisodicMemoryStore(
+                db, embedding_provider=embedding_provider, vector_store=vector_store,
+            )
+
+            migration = DaemonVectorMigration(db, episodic, vector_store, embedding_provider)
+            if not await migration.is_complete():
+                click.echo("[vector-search] Migrating existing episodes...")
+                await migration.run()
+
+            click.echo("[vector-search] Semantic search enabled (daemon)")
+        except Exception as e:
+            click.echo(f"[vector-search] Disabled in daemon: {e}", err=True)
+
     forge = None
     if config.skills.forge_enabled:
         forge = SkillForge(
@@ -369,6 +398,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         working_memory=working,
         episodic_memory=episodic,
         forge=forge,
+        context_assembler=context_assembler,
     )
 
     async def goal_executor(goal_text: str) -> dict:
