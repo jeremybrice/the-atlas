@@ -16,6 +16,8 @@ dependencies = [
     "watchdog>=4.0",
     "cryptography>=43.0",
     "aiohttp>=3.10",
+    "voyageai>=0.3",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
