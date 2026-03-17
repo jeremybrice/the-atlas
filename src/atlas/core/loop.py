@@ -8,6 +8,7 @@ from atlas.contracts.types import (
     ApprovalRequest,
     ApprovalResult,
     AuditEntry,
+    ContextQuery,
     Episode,
     EpisodeType,
     ExecutionContext,
@@ -16,6 +17,7 @@ from atlas.contracts.types import (
     ProposedAction,
     TaskStatus,
 )
+from atlas.memory.retrieval import ContextAssembler
 from atlas.control.approval import ApprovalWorkflow
 from atlas.control.audit import AuditLogger
 from atlas.control.policy import PolicyEngine
@@ -64,6 +66,7 @@ class ExecutionLoop:
         episodic_memory: EpisodicMemoryStore,
         forge=None,
         max_replans: int = 2,
+        context_assembler: ContextAssembler | None = None,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -75,12 +78,30 @@ class ExecutionLoop:
         self._episodic = episodic_memory
         self._forge = forge
         self._max_replans = max_replans
+        self._context_assembler = context_assembler
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
         ctx = ExecutionContext.new(mission_id=mission.mission_id)
         actions_log: list[dict] = []
         replans_remaining = self._max_replans
+
+        # Retrieve episodic context if assembler is available
+        context_text = ""
+        if self._context_assembler:
+            try:
+                recent_episodes = await self._episodic.query_recent(limit=50)
+                query = ContextQuery(
+                    purpose="planning",
+                    task_description=mission.goal_text,
+                    token_budget=4000,
+                )
+                bundle = self._context_assembler.assemble(query, recent_episodes)
+                if bundle.contents:
+                    context_text = "\n\n".join(c["text"] for c in bundle.contents)
+                    logger.info("Assembled %d tokens of episodic context", bundle.total_tokens)
+            except Exception as e:
+                logger.warning("Context assembly failed, proceeding without: %s", e)
 
         total = len(mission.tasks)
         i = 0
@@ -111,7 +132,7 @@ class ExecutionLoop:
                     error=task.error or "unknown",
                     remaining_tasks=remaining_descs,
                     skills=skills_desc,
-                    context="",
+                    context=context_text,
                 )
                 try:
                     response = await self._env.claude_oneshot(
