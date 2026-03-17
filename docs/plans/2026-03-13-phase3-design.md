@@ -19,13 +19,15 @@ Phase 3 connects ATLAS to the outside world and makes it smarter over time. This
 
 ## Stage Summary
 
-| Stage | Features | Theme |
-|-------|----------|-------|
-| **A** | Trust Escalation + MCP Bridge + Credential Vault | Foundation: autonomy, tool expansion, secrets |
-| **B** | GitHub Connector + Webhook Ingestion + Dashboard API | First integration + visibility |
-| **C** | Slack Connector + Jira Connector | Expand integration surface |
-| **D** | Vector Search + Multi-Agent Coordination | Intelligence + parallelism |
-| **E** | Browser Automation | Niche web interaction |
+| Stage | Features | Theme | Status |
+|-------|----------|-------|--------|
+| **A** | Trust Escalation + MCP Bridge + Credential Vault | Foundation: autonomy, tool expansion, secrets | Complete |
+| **B** | GitHub Connector + Webhook Ingestion + Dashboard API | First integration + visibility | Complete |
+| **D** | Vector Search + Multi-Agent Coordination | Intelligence + parallelism | Next |
+| **E** | Browser Automation | Niche web interaction | Planned |
+| **C** | Slack Connector + Jira Connector | Expand integration surface | Deferred |
+
+> **Order change (2026-03-17):** Stage C deferred until after D and E. The Slack/Jira connectors are additional implementations of existing ConnectorABC infrastructure — no downstream dependencies. Deferral lets the connector layer stabilize under real GitHub usage before stamping out more implementations.
 
 ---
 
@@ -243,17 +245,16 @@ Playwright-based web interaction for testing, scraping, and web-only services.
 ## Dependency Graph
 
 ```
-Stage A: [Trust Escalation] [MCP Bridge] [Credential Vault]
+Stage A: [Trust Escalation] [MCP Bridge] [Credential Vault]       ✅ Complete
               │                    │              │
               ▼                    ▼              ▼
-Stage B: [GitHub Connector] ← [Webhook Ingestion] [Dashboard API]
-              │                    │
-              ▼                    ▼
-Stage C: [Slack Connector]   [Jira Connector]
+Stage B: [GitHub Connector] ← [Webhook Ingestion] [Dashboard API] ✅ Complete
 
-Stage D: [Vector Search]     [Multi-Agent]
+Stage D: [Vector Search]     [Multi-Agent]                         ← Next
 
 Stage E: [Browser Automation]
+
+Stage C: [Slack Connector]   [Jira Connector]                      Deferred
 ```
 
 ## New Dependencies Summary
