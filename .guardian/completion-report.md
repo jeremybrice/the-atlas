@@ -1,79 +1,76 @@
-# Completion Report: Phase 3 Stage B
+# Completion Report
 
-**Mission:** GitHub Connector + Webhook Ingestion + Dashboard API
-**Branch:** `phase3-stage-b-webhook-dashboard`
-**Date:** 2026-03-14
+**Playbook:** feature-build
+**Design Doc:** docs/plans/2026-03-17-phase3-stage-d1-vector-search-design.md
+**Completed:** 2026-03-17
+**Branch:** phase3-stage-b-webhook-dashboard
 
 ## Summary
 
-Phase 3 Stage B adds three major capabilities to ATLAS:
+Added semantic vector search to ATLAS's episodic memory using Voyage AI embeddings. Episodes are embedded on record, stored as numpy float32 BLOBs in SQLite, and searched via cosine similarity. A hybrid retrieval layer merges FTS5 keyword scores (0.4 weight) with vector similarity scores (0.6 weight). The ContextAssembler is now wired into the ExecutionLoop so past episodes inform planning. Graceful degradation to keyword-only search when the Voyage API is unavailable.
 
-1. **GitHub Connector** — First external integration implementing `ConnectorABC`, with event parsing (webhooks → ObservationEvents) and outbound API actions (comment, create issue, list pulls)
-2. **Webhook HTTP Ingestion** — `WebhookServer` (aiohttp) receives HTTP POST payloads from external services, normalizes them via `EventBridge` into the existing reactive pipeline
-3. **Dashboard API** — `DashboardServer` mounts REST endpoints (`/api/status`, `/api/missions`, `/api/skills`, `/api/audit`, `/api/memory/stats`, `/api/goal`) on the same aiohttp app for monitoring and control
+## Requirements Mapping
 
-All three components share a single aiohttp web application bound to `127.0.0.1:8484`, integrated into the daemon lifecycle.
+| Requirement | Status | Implementation | Notes |
+|-------------|--------|----------------|-------|
+| EmbeddingProvider wrapping Voyage AI | Done | `src/atlas/memory/embeddings.py` | embed/embed_query/embed_batch with graceful error handling |
+| VectorStore with SQLite BLOBs | Done | `src/atlas/memory/vector_store.py` | store/search/has_embedding/count with numpy cosine similarity |
+| Hybrid retrieval (0.6 semantic + 0.4 keyword) | Done | `src/atlas/memory/retrieval.py` | merge_scores + assemble_ranked methods |
+| FTS5 scoring with normalized scores | Done | `src/atlas/memory/episodic.py:search_scored` | Normalized FTS5 rank to [0,1] |
+| Embed episodes on record | Done | `src/atlas/memory/episodic.py:record` | Optional provider/vector_store, never blocks recording |
+| Batch migration on first run | Done | `src/atlas/memory/migration.py` | VectorMigration with metadata tracking |
+| ExecutionLoop wiring | Done | `src/atlas/core/loop.py` | Optional context_assembler, episodic context before task loop |
+| CLI wiring | Done | `src/atlas/cli.py:_run_goal` | Constructs components when vector_search.enabled, graceful fallback |
+| Graceful degradation | Done | Multiple files | Keyword-only fallback on any Voyage API failure |
+| VectorSearchConfig | Done | `src/atlas/config.py` | Nested in MemoryConfig, defaults to disabled |
+| episode_embeddings + metadata tables | Done | `src/atlas/memory/store.py` | Schema matches design spec exactly |
+| FTS5 lessons column | Done | `src/atlas/memory/store.py` | FTS5 trigger updated to index lessons |
 
-## Tasks Completed
+## Guardian Results
 
-| # | Task | Status |
-|---|------|--------|
-| 1 | Add aiohttp dependency and WebhookConfig | Done |
-| 2 | Add entity_mappings table to DatabaseStore | Done |
-| 3 | Implement EntityMapper | Done |
-| 4 | Implement ConnectorABC base class | Done |
-| 5 | Implement EventBridge | Done |
-| 6 | Implement WebhookServer | Done |
-| 7 | Implement GitHubConnector | Done |
-| 8 | Implement DashboardServer | Done |
-| 9 | Wire webhook + dashboard into daemon lifecycle | Done |
-| 10 | Integration test — webhook pipeline | Done |
-| 11 | Full test suite + lint validation | Done |
+### Spec Guardian
+- Issues caught: 0
+- All resolved: Yes
+- Details: Implementation matches design doc on all 9 requirements
 
-## New Files Created (15)
+### Test Guardian
+- Issues caught: 0
+- All resolved: Yes
+- Test command: `source .venv/bin/activate && pytest tests/ -v`
+- Final result: PASS (272 tests)
+- Details: 35 new tests added (237 baseline + 35 = 272)
 
-**Source (6):**
-- `src/atlas/integrations/connector.py` — ConnectorABC base class with rate limiting
-- `src/atlas/integrations/entity_mapper.py` — Bidirectional ATLAS↔external ID mapping
-- `src/atlas/integrations/event_bridge.py` — Webhook payload normalization + HMAC verification
-- `src/atlas/integrations/webhook.py` — WebhookServer (aiohttp HTTP endpoint)
-- `src/atlas/integrations/dashboard.py` — DashboardServer (REST monitoring API)
-- `src/atlas/integrations/connectors/github.py` — GitHubConnector (API + events)
+### Convention Guardian
+- Issues caught: 0
+- All resolved: Yes
+- Details: All code follows CLAUDE.md conventions
 
-**Tests (9):**
-- `tests/unit/integrations/test_connector.py` (5 tests)
-- `tests/unit/integrations/test_entity_mapper.py` (6 tests)
-- `tests/unit/integrations/test_event_bridge.py` (5 tests)
-- `tests/unit/integrations/test_webhook.py` (4 tests)
-- `tests/unit/integrations/test_github.py` (7 tests)
-- `tests/unit/integrations/test_dashboard.py` (8 tests)
-- `tests/unit/integrations/test_daemon_wiring.py` (1 test)
-- `tests/unit/memory/test_store_entity.py` (2 tests)
-- `tests/integration/test_webhook_pipeline.py` (3 tests)
+### Integration Guardian
+- Issues caught: 0
+- All resolved: Yes
+- Full suite result: PASS
+- Details: No regressions in existing 237 tests
 
-## Files Modified (7)
+## Deviations from Spec
 
-- `pyproject.toml` — Added `aiohttp>=3.10`, `pytest-aiohttp>=1.0`
-- `src/atlas/config.py` — Added `WebhookConfig` dataclass, wired into `AtlasConfig`
-- `config/default.yaml` — Added `webhook` section with defaults
-- `src/atlas/memory/store.py` — Added `entity_mappings` table + index
-- `src/atlas/daemon/loop.py` — Added `http_app`/`http_host`/`http_port` params, aiohttp AppRunner lifecycle
-- `src/atlas/cli.py` — Wired EventBridge, WebhookServer, DashboardServer into `_run_daemon`
-- `tests/unit/test_config.py` — Added `test_webhook_config_defaults`
+1. **Context retrieval scope:** Design said "before task planning." Implementation retrieves context once before the task execution loop using the mission's goal text, not before each individual task. Reasonable — the mission goal is the natural query.
+
+2. **Initial planning:** Episodic context is used in the execution loop (replan prompt) but not in the initial planning call in cli.py. Initial planning uses environment state. The design doc didn't specify which planning calls get episodic context.
+
+Both deviations accepted by reviewer with no fix tasks.
 
 ## Test Results
 
-- **Total tests:** 226
-- **All passing:** Yes
-- **New tests added:** 41
-- **Baseline preserved:** 185 existing tests still pass
-- **Lint:** `ruff check src/ tests/` — All checks passed
+```
+272 passed in 8.40s
+All checks passed! (ruff)
+```
 
-## Architecture Decisions
+## Key Decisions
 
-1. **Single aiohttp app** — Webhook and Dashboard share one web.Application, avoiding port proliferation
-2. **EventBridge pattern** — Service-specific parsers registered at startup; WebhookServer is service-agnostic
-3. **ConnectorABC with rate limiting** — Built-in sliding-window rate limiter prevents API abuse
-4. **HMAC verification** — GitHub webhook signatures verified using `hmac.compare_digest` (timing-safe)
-5. **entity_mappings table** — Composite PK `(service, external_id)` with reverse-lookup index on `(atlas_type, atlas_id)`
-6. **Dashboard reads existing stores** — No new data layer; queries missions/episodes/audit tables directly
+No design decisions were needed during implementation. The design doc and implementation plan were sufficiently detailed. Key decisions made during brainstorming (pre-implementation):
+- Voyage AI over OpenAI for embeddings (Anthropic ecosystem alignment)
+- numpy cosine similarity over sqlite-vec extension (sufficient for expected episode volumes)
+- Hybrid scoring over semantic-only (preserves exact keyword match value)
+- Batch migration on first run over lazy embedding (consistent state)
+- Wire ContextAssembler into ExecutionLoop (completes the value chain)

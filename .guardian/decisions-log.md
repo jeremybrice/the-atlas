@@ -1,7 +1,7 @@
 # Decisions Log
 
-**Mission:** Phase 3 Stage B — GitHub Connector + Webhook Ingestion + Dashboard API
-**Started:** 2026-03-14
+**Mission:** Phase 3 Stage D1 — Vector Search
+**Started:** 2026-03-17
 
 ---
 
