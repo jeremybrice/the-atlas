@@ -120,12 +120,12 @@ class ContextAssembler:
 
     def _sort_for_purpose(self, purpose: str, episodes: list[Episode]) -> list[Episode]:
         if purpose == "reflection":
-            # Failed episodes first, then successful
+            # Failed episodes first, then successful (most recent within each group)
             failed = [e for e in episodes if e.outcome == "failed"]
             others = [e for e in episodes if e.outcome != "failed"]
-            return list(reversed(failed)) + list(reversed(others))
-        # Default: most recent first
-        return list(reversed(episodes))
+            return failed + others
+        # Default: preserve input order (most recent first from query_recent)
+        return list(episodes)
 
     def _episode_to_text(self, episode: Episode) -> str:
         parts = []

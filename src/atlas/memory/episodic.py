@@ -90,13 +90,18 @@ class EpisodicMemoryStore:
         """Search episodes and return (episode_id, relevance_score) tuples.
 
         Scores are normalized FTS5 rank values in [0, 1] range.
-        The query is wrapped in double quotes for FTS5 literal matching
-        to prevent reserved words (AND, OR, NOT) from causing parse errors.
+        Each token is individually quoted for FTS5 safety (prevents reserved
+        words like AND/OR/NOT from being parsed as operators) while allowing
+        per-token matching instead of exact phrase search.
         """
         if not text_query or not text_query.strip():
             return []
-        # Escape double quotes in the query and wrap for FTS5 literal matching
-        safe_query = '"' + text_query.replace('"', '""') + '"'
+        # Quote each token individually for FTS5 safety without requiring phrase match
+        tokens = text_query.split()
+        safe_tokens = ['"' + t.replace('"', '""') + '"' for t in tokens if t.strip()]
+        if not safe_tokens:
+            return []
+        safe_query = " ".join(safe_tokens)
         cursor = await self._db.db.execute(
             """SELECT e.episode_id, rank
                FROM episodes e
