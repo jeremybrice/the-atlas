@@ -136,5 +136,18 @@ class DatabaseStore:
 
             CREATE INDEX IF NOT EXISTS idx_entity_atlas
                 ON entity_mappings(atlas_type, atlas_id);
+
+            CREATE TABLE IF NOT EXISTS episode_embeddings (
+                episode_id TEXT PRIMARY KEY REFERENCES episodes(episode_id),
+                embedding BLOB NOT NULL,
+                model TEXT NOT NULL,
+                dimensions INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
         """)
         await self._db.commit()
