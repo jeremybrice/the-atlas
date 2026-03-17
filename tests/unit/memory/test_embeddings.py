@@ -79,3 +79,49 @@ def test_embed_batch_returns_empty_on_api_error(provider, mock_voyage_client):
     mock_voyage_client.embed.side_effect = Exception("API timeout")
     results = provider.embed_batch(["text"])
     assert results == []
+
+
+async def test_episodic_store_embeds_on_record(tmp_path):
+    """When an embedding provider is set, recording an episode also stores its embedding."""
+    from atlas.memory.store import DatabaseStore
+    from atlas.memory.episodic import EpisodicMemoryStore
+    from atlas.memory.vector_store import VectorStore
+    from atlas.contracts.types import Episode
+
+    db = DatabaseStore(str(tmp_path / "test.db"))
+    await db.initialize()
+
+    mock_provider = MagicMock()
+    mock_provider.compose_episode_text.return_value = "test text"
+    mock_provider.embed.return_value = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+
+    vector_store = VectorStore(db, model="voyage-3-lite")
+    store = EpisodicMemoryStore(db, embedding_provider=mock_provider, vector_store=vector_store)
+
+    episode = Episode(trigger="test goal", outcome="done")
+    await store.record(episode)
+
+    # Verify embedding was stored
+    result = await vector_store.get(episode.episode_id)
+    assert result is not None
+    await db.close()
+
+
+async def test_episodic_store_records_without_provider(tmp_path):
+    """Recording without an embedding provider should still work (no vector stored)."""
+    from atlas.memory.store import DatabaseStore
+    from atlas.memory.episodic import EpisodicMemoryStore
+    from atlas.memory.vector_store import VectorStore
+    from atlas.contracts.types import Episode
+
+    db = DatabaseStore(str(tmp_path / "test.db"))
+    await db.initialize()
+
+    store = EpisodicMemoryStore(db)
+    episode = Episode(trigger="test goal", outcome="done")
+    episode_id = await store.record(episode)
+    assert episode_id == episode.episode_id
+
+    vector_store = VectorStore(db)
+    assert await vector_store.has_embedding(episode.episode_id) is False
+    await db.close()
