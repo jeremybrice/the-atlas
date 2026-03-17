@@ -164,13 +164,15 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
     if config.memory.vector_search.enabled:
         try:
-            from atlas.integrations.vault import CredentialVault
+            import os
+
             from atlas.memory.embeddings import EmbeddingProvider
             from atlas.memory.migration import VectorMigration
             from atlas.memory.vector_store import VectorStore
 
-            vault = await CredentialVault.create(db=db, passphrase="atlas-default")
-            api_key = await vault.get("voyage", "api_key")
+            api_key = os.environ.get("VOYAGE_API_KEY")
+            if not api_key:
+                raise ValueError("VOYAGE_API_KEY environment variable not set")
 
             embedding_provider = EmbeddingProvider(
                 api_key=api_key, model=config.memory.vector_search.model,
