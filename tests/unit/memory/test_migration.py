@@ -63,7 +63,12 @@ async def test_migration_skips_already_embedded(migration_deps):
 
 async def test_migration_marks_complete(migration_deps):
     db, episodic, vector_store, mock_provider = migration_deps
-    mock_provider.embed_batch.return_value = []
+
+    await episodic.record(Episode(trigger="goal one", outcome="done"))
+
+    mock_provider.embed_batch.return_value = [
+        np.array([0.1, 0.2, 0.3], dtype=np.float32),
+    ]
 
     migration = VectorMigration(db, episodic, vector_store, mock_provider)
     await migration.run()
@@ -73,9 +78,27 @@ async def test_migration_marks_complete(migration_deps):
 
 async def test_migration_noop_if_already_complete(migration_deps):
     db, episodic, vector_store, mock_provider = migration_deps
-    mock_provider.embed_batch.return_value = []
+
+    await episodic.record(Episode(trigger="goal one", outcome="done"))
+
+    mock_provider.embed_batch.return_value = [
+        np.array([0.1, 0.2, 0.3], dtype=np.float32),
+    ]
 
     migration = VectorMigration(db, episodic, vector_store, mock_provider)
     await migration.run()
     count = await migration.run()  # second run
     assert count == 0
+
+
+async def test_migration_does_not_mark_complete_on_api_failure(migration_deps):
+    """If embed_batch returns [] (API failure), migration should NOT mark complete."""
+    db, episodic, vector_store, mock_provider = migration_deps
+
+    await episodic.record(Episode(trigger="goal one", outcome="done"))
+    mock_provider.embed_batch.return_value = []  # API failure
+
+    migration = VectorMigration(db, episodic, vector_store, mock_provider)
+    count = await migration.run()
+    assert count == 0
+    assert await migration.is_complete() is False
