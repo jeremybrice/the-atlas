@@ -1,6 +1,7 @@
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
+from atlas.control.audit import AuditLogger
 from atlas.control.emergency import EmergencyController
 from atlas.control.approval import ApprovalWorkflow
 from atlas.control.policy import PolicyEngine
@@ -26,7 +27,7 @@ async def db(tmp_path):
 
 
 @pytest.fixture
-def components(db):
+async def components(db):
     registry = SkillRegistry()
 
     async def noop_handler(params):
@@ -37,8 +38,8 @@ def components(db):
     runtime = InvocationRuntime(registry)
     env = MagicMock()
     policy = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
-    audit = MagicMock()
-    audit.log = AsyncMock()
+    audit = AuditLogger(db=db.db)
+    await audit.initialize()
     approval = ApprovalWorkflow(auto_approve=True)
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
