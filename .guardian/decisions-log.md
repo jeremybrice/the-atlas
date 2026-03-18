@@ -1,7 +1,7 @@
 # Decisions Log
 
-**Mission:** Phase 3 Stage D1 — Vector Search
-**Started:** 2026-03-17
+**Mission:** Control Plane Completion
+**Started:** 2026-03-18
 
 ---
 

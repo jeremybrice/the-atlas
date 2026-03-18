@@ -1,61 +1,81 @@
 # Mission Brief
 
 **Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-17-phase3-stage-d1-vector-search-design.md
-**Implementation Plan:** docs/plans/2026-03-17-phase3-stage-d1-vector-search.md
-**Created:** 2026-03-17
+**Design Doc:** docs/plans/2026-03-18-control-plane-completion-design.md
+**Implementation Plan:** docs/plans/2026-03-18-control-plane-completion.md
+**Created:** 2026-03-18
 
 ## Requirements Summary
 
-1. **EmbeddingProvider** — Wraps Voyage AI API (`voyage-3-lite`), embed/embed_query/embed_batch methods, returns numpy arrays, graceful error handling (returns None on API failure)
-2. **VectorStore** — SQLite BLOBs in `episode_embeddings` table, numpy cosine similarity search, store/store_batch/search/has_embedding/count methods
-3. **Hybrid retrieval** — `ContextAssembler.merge_scores()` and `assemble_ranked()` combining FTS5 keyword (0.4 weight) + vector similarity (0.6 weight)
-4. **FTS5 scoring** — `EpisodicMemoryStore.search_scored()` returning normalized relevance scores, add `lessons` to FTS5 index
-5. **Embed on record** — `EpisodicMemoryStore.record()` embeds episodes when provider is available, never blocks episode recording on embedding failure
-6. **Batch migration** — `VectorMigration` embeds all existing episodes on first run, tracks completion in `metadata` table
-7. **ExecutionLoop wiring** — `ContextAssembler.assemble()` called before task planning, `ContextBundle` passed to Claude bridge via context_text
-8. **CLI wiring** — Construct vector search components in `_run_goal` when `memory.vector_search.enabled` is true
-9. **Graceful degradation** — Falls back to keyword-only search when Voyage API is unavailable
+1. **Emergency Controls** — EmergencyController class with pause/resume/kill operations. Wire into DaemonLoop (3 new socket commands: pause, resume, kill) and ExecutionLoop (asyncio.Event gating before each task, cancellation checks). Add `atlas daemon pause/resume/kill` CLI commands. Add 3 dashboard endpoints (POST /api/emergency/pause, /resume, /kill).
+
+2. **Batch + Standing Approval Rules** — New `approval_rules` SQLite table. ApprovalRuleStore class with fnmatch glob-based matching, risk level comparison, path prefix matching, and expiration pruning. Wire into ApprovalWorkflow (check standing rules before terminal prompt, add `always/never` terminal options that create rules, add `request_batch_approval()` method). Add `atlas rules list/add/remove` CLI commands. Add 3 dashboard endpoints (GET/POST/DELETE /api/approvals/rules).
+
+3. **Trust Recommendations** — New `trust_recommendations` SQLite table. TrustRecommendation dataclass. TrustTracker gains `create_recommendation()`, `list_recommendations()`, `resolve_recommendation()` methods. ExecutionLoop collects TrustOutcome signals during execution and creates recommendations post-mission. CLI prints post-mission trust summary with y/n/select prompts. Add `atlas trust recommendations/accept/dismiss/status` CLI commands. Add 4 dashboard endpoints.
+
+4. **Full Dashboard API** — Refactor DashboardServer constructor to accept optional emergency_controller, approval_rule_store, trust_tracker, config. Components return 501 if None. Add endpoints: GET /api/tasks, GET /api/health, GET /api/config, GET /api/connectors. Enhance GET /api/status with paused, active_task_id, standing_rules_count. Enhance GET /api/memory/stats with embedding_count. Total: 20 endpoints.
+
+5. **Wiring** — Wire all new components into both `_run_goal` (inline CLI) and `_run_daemon` (background daemon) paths in cli.py. Share EmergencyController instance between DaemonLoop and ExecutionLoop.
 
 ## Key Files
 
-- `src/atlas/memory/embeddings.py` — NEW: EmbeddingProvider (Voyage AI wrapper)
-- `src/atlas/memory/vector_store.py` — NEW: VectorStore (SQLite BLOB + cosine similarity)
-- `src/atlas/memory/migration.py` — NEW: VectorMigration (batch embed existing episodes)
-- `src/atlas/memory/retrieval.py` — MODIFY: Add merge_scores, assemble_ranked, refactor assemble into _assemble_episodes
-- `src/atlas/memory/episodic.py` — MODIFY: Add search_scored, embed-on-record, optional embedding_provider/vector_store
-- `src/atlas/memory/store.py` — MODIFY: Add episode_embeddings + metadata tables, update FTS5 trigger to include lessons
-- `src/atlas/config.py` — MODIFY: Add VectorSearchConfig dataclass, nest in MemoryConfig, update _merge_into_dataclass for nested dataclasses
-- `config/default.yaml` — MODIFY: Add vector_search section under memory
-- `src/atlas/core/loop.py` — MODIFY: Add context_assembler parameter, retrieve context before task planning loop
-- `src/atlas/cli.py` — MODIFY: Wire vector search components in _run_goal
-- `pyproject.toml` — MODIFY: Add voyageai and numpy dependencies
+**Create:**
+- `src/atlas/control/emergency.py` — EmergencyController class
+- `src/atlas/control/approval_rules.py` — ApprovalRuleStore + glob matching
+
+**Modify:**
+- `src/atlas/contracts/types.py` — Add ApprovalRule, TrustRecommendation dataclasses
+- `src/atlas/memory/store.py` — Add approval_rules and trust_recommendations table schemas
+- `src/atlas/control/approval.py` — Wire rule store, batch approval, always/never prompts
+- `src/atlas/control/trust.py` — Add recommendation create/list/resolve methods
+- `src/atlas/core/loop.py` — Pause gating, trust signal collection, cancellation checks
+- `src/atlas/core/missions.py` — Add trust_recommendations field to Mission
+- `src/atlas/daemon/loop.py` — pause/resume/kill command handlers, accept EmergencyController
+- `src/atlas/integrations/dashboard.py` — Refactor constructor, add 14 new endpoints
+- `src/atlas/cli.py` — daemon pause/resume/kill, rules group, trust group, post-mission summary, full wiring
+
+**Test files to create:**
+- `tests/unit/control/test_emergency.py`
+- `tests/unit/control/test_approval_rules.py`
+- `tests/unit/control/test_trust_recommendations.py`
+- `tests/unit/core/test_loop_emergency.py`
+- `tests/integration/test_control_plane_completion.py`
+
+**Test files to modify:**
+- `tests/unit/daemon/test_daemon_loop.py`
+- `tests/unit/control/test_approval.py`
+- `tests/unit/integrations/test_dashboard.py`
 
 ## Test Command
 
-`source .venv/bin/activate && pytest tests/ -v`
+```bash
+source .venv/bin/activate && pytest tests/ -v
+```
+
+Linter:
+```bash
+source .venv/bin/activate && ruff check src/ tests/
+```
 
 ## Developer Callouts
 
-Follow CLAUDE.md conventions:
-- Python 3.12+ with `str | None` syntax
-- `from __future__ import annotations` is used in existing memory files — maintain consistency
-- src layout imports: `from atlas.x import Y`
-- Errors extend `RetriableError` or `FatalError` from `contracts/errors.py`
-- Mock only `ClaudeCodeBridge` and Voyage AI API client, use real SQLite with `tmp_path`
-- `correlation_id` propagated via `ExecutionContext` through all cross-domain calls
-- Existing `ContextAssembler` tests must not break — refactor shares logic via `_assemble_episodes`
-- `_merge_into_dataclass` in config.py needs to handle nested dataclasses for `VectorSearchConfig`
+- **Python 3.12+** — use `str | None` syntax, no `from __future__ import annotations` needed in new files
+- **Real SQLite in tests** — use `tmp_path` fixtures, no database mocks
+- **ClaudeCodeBridge is the only mock** — everything else uses real implementations
+- **Integration-focused testing** — unit test complex logic only
+- **Absolute imports only** — `from atlas.x import Y`, no relative cross-domain imports
+- **Error hierarchy** — all errors extend `RetriableError` or `FatalError` from `contracts/errors.py`
+- **correlation_id** — propagated via `ExecutionContext` through all cross-domain calls
+- **Existing tests must not break** — 273 tests currently passing
 
 ## Success Criteria
 
-- All implementation tasks complete and pass guardians
-- `EmbeddingProvider` embeds text via Voyage AI (mocked in tests)
-- `VectorStore` stores/searches embeddings via numpy cosine similarity
-- Hybrid retrieval merges FTS5 + vector scores correctly
-- Episodes are embedded on record when provider is available
-- Migration batch-embeds existing episodes on first run
-- `ExecutionLoop` retrieves episodic context before planning
-- Graceful degradation to keyword-only when Voyage unavailable
-- All tests pass (baseline 237 + ~25 new)
-- Lint clean (`ruff check src/ tests/`)
+1. All 4 slices implemented end-to-end (schema → logic → CLI → dashboard)
+2. EmergencyController pause/resume/kill works via daemon socket, CLI, and dashboard
+3. Standing approval rules auto-approve/deny matching actions without terminal prompts
+4. Batch approval presents grouped actions when multiple need approval
+5. Trust recommendations created post-mission, surfaced in CLI summary, queryable via `atlas trust`
+6. Dashboard API has 20 functioning endpoints (existing + new)
+7. Full test suite passes (273+ tests, including new ones)
+8. Linter passes (`ruff check src/ tests/`)
+9. All new components default to None so existing code paths are unaffected
