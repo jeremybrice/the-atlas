@@ -5,6 +5,7 @@ import os
 import time
 from typing import Any, Callable, Coroutine
 
+from atlas.control.emergency import EmergencyController
 from atlas.daemon.manager import PidFile
 from atlas.daemon.protocol import DaemonSocketServer
 
@@ -22,6 +23,7 @@ class DaemonLoop:
         http_app: Any | None = None,
         http_host: str = "127.0.0.1",
         http_port: int = 8484,
+        emergency_controller: EmergencyController | None = None,
     ):
         self._socket_path = socket_path
         self._pid_file = PidFile(pid_path)
@@ -36,6 +38,7 @@ class DaemonLoop:
         self._http_port = http_port
         self._http_runner = None
         self._http_running = False
+        self._emergency = emergency_controller or EmergencyController()
 
     async def start(self) -> None:
         self._start_time = time.monotonic()
@@ -96,6 +99,16 @@ class DaemonLoop:
             case "shutdown":
                 asyncio.get_event_loop().call_soon(lambda: asyncio.ensure_future(self.stop()))
                 return {"command_id": command_id, "status": "ok", "payload": {"message": "shutting down"}}
+            case "pause":
+                self._emergency.pause()
+                return {"command_id": command_id, "status": "ok", "payload": {"message": "paused"}}
+            case "resume":
+                self._emergency.resume()
+                return {"command_id": command_id, "status": "ok", "payload": {"message": "resumed"}}
+            case "kill":
+                task_id = data.get("payload", {}).get("task_id", "")
+                killed = self._emergency.kill_task(task_id)
+                return {"command_id": command_id, "status": "ok", "payload": {"killed": killed}}
             case _:
                 return {"command_id": command_id, "status": "error", "error": f"unknown command: {command}"}
 
@@ -108,6 +121,10 @@ class DaemonLoop:
         except Exception as e:
             return {"command_id": command_id, "status": "error", "error": str(e)}
 
+    @property
+    def emergency(self) -> EmergencyController:
+        return self._emergency
+
     def _handle_status(self, command_id: str) -> dict:
         uptime = time.monotonic() - self._start_time
         return {
@@ -118,6 +135,8 @@ class DaemonLoop:
                 "uptime_seconds": round(uptime, 1),
                 "running": self._running,
                 "http_running": self._http_running,
+                "paused": self._emergency.is_paused,
+                "active_task_id": self._emergency.active_task_id,
             },
         }
 
