@@ -1,5 +1,5 @@
 import pytest
-from atlas.contracts.types import AutonomyLevel, TrustRecommendation
+from atlas.contracts.types import AutonomyLevel
 from atlas.control.trust import TrustTracker
 from atlas.memory.store import DatabaseStore
 

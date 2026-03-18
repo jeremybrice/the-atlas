@@ -2,8 +2,11 @@ import pytest
 from atlas.integrations.dashboard import DashboardServer
 from atlas.memory.store import DatabaseStore
 from atlas.control.audit import AuditLogger
+from atlas.control.emergency import EmergencyController
+from atlas.control.approval_rules import ApprovalRuleStore
+from atlas.control.trust import TrustTracker
 from atlas.skills.registry import SkillRegistry
-from atlas.contracts.types import AuditEntry, PolicyDecision
+from atlas.contracts.types import ApprovalRule, AuditEntry, PolicyDecision
 
 
 @pytest.fixture
@@ -138,11 +141,6 @@ async def test_memory_stats_endpoint(dashboard, aiohttp_client):
 
 
 # --- Tests for new endpoints (full_dashboard fixture) ---
-
-from atlas.control.emergency import EmergencyController
-from atlas.control.approval_rules import ApprovalRuleStore
-from atlas.control.trust import TrustTracker
-from atlas.contracts.types import ApprovalRule
 
 
 @pytest.fixture

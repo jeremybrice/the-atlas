@@ -1,5 +1,4 @@
 """Dashboard API — HTTP REST endpoints for monitoring and control."""
-import json
 import logging
 import time
 from typing import Any, Callable, Coroutine
