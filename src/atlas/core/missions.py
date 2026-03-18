@@ -17,6 +17,7 @@ class Mission:
     goal_text: str = ""
     status: MissionStatus = MissionStatus.PLANNING
     tasks: list[Task] = field(default_factory=list)
+    trust_recommendations: list = field(default_factory=list)
 
 
 def parse_task_plan(raw: str) -> list[Task]:

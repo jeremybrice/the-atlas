@@ -72,6 +72,8 @@ class ExecutionLoop:
         search_limit: int = 50,
         semantic_weight: float = 0.6,
         keyword_weight: float = 0.4,
+        emergency_controller=None,
+        trust_tracker=None,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -89,6 +91,9 @@ class ExecutionLoop:
         self._search_limit = search_limit
         self._semantic_weight = semantic_weight
         self._keyword_weight = keyword_weight
+        self._emergency = emergency_controller
+        self._trust_tracker = trust_tracker
+        self._trust_signals: list = []
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
@@ -156,9 +161,23 @@ class ExecutionLoop:
                 mission_id=mission.mission_id,
                 task_id=task.task_id,
             )
+            # Check emergency controls
+            if self._emergency:
+                await self._emergency.wait_if_paused()
+                self._emergency.set_active_task(task.task_id)
+                if self._emergency.is_task_cancelled(task.task_id):
+                    task.status = TaskStatus.CANCELLED
+                    task.error = "Cancelled by emergency control"
+                    if self._emergency:
+                        self._emergency.clear_active_task()
+                    i += 1
+                    continue
+
             logger.info("[task %d/%d] %s", i + 1, total, task.description)
 
             success = await self._execute_task(task, step_ctx)
+            if self._emergency:
+                self._emergency.clear_active_task()
             actions_log.append({
                 "task_id": task.task_id,
                 "description": task.description,
@@ -198,6 +217,21 @@ class ExecutionLoop:
             t.status == TaskStatus.COMPLETED for t in mission.tasks
         )
         mission.status = MissionStatus.COMPLETED if all_succeeded else MissionStatus.FAILED
+
+        # Collect trust recommendations from signals gathered during execution
+        trust_recommendations = []
+        if self._trust_tracker and self._trust_signals:
+            for signal in self._trust_signals:
+                direction = "escalate" if signal.should_escalate else "demote"
+                try:
+                    rec = await self._trust_tracker.create_recommendation(
+                        signal.skill_id, direction, mission_id=mission.mission_id,
+                    )
+                    trust_recommendations.append(rec)
+                except Exception as e:
+                    logger.warning("Failed to create trust recommendation: %s", e)
+            self._trust_signals = []
+        mission.trust_recommendations = trust_recommendations
 
         # Record episode
         await self._episodic.record(Episode(
@@ -283,12 +317,25 @@ class ExecutionLoop:
             task.status = TaskStatus.COMPLETED
             task.result = result.output
             await self._log_audit(task, ctx, decision, "success")
-            return True
+            success = True
         else:
             task.status = TaskStatus.FAILED
             task.error = result.error
             await self._log_audit(task, ctx, decision, "failure")
-            return False
+            success = False
+
+        # Record trust outcome
+        if self._trust_tracker and task.skill_id:
+            try:
+                outcome = await self._trust_tracker.record_outcome(
+                    task.skill_id, success=success, ctx=ctx,
+                )
+                if outcome.should_escalate or outcome.should_demote:
+                    self._trust_signals.append(outcome)
+            except Exception as e:
+                logger.warning("Trust tracking failed: %s", e)
+
+        return success
 
     async def _log_audit(
         self, task: Task, ctx: ExecutionContext,
