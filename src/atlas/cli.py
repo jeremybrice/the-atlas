@@ -13,8 +13,11 @@ import click
 from atlas.config import load_config
 from atlas.contracts.types import AutonomyLevel, DaemonCommand
 from atlas.control.approval import ApprovalWorkflow
+from atlas.control.approval_rules import ApprovalRuleStore
 from atlas.control.audit import AuditLogger
+from atlas.control.emergency import EmergencyController
 from atlas.control.policy import PolicyEngine
+from atlas.control.trust import TrustTracker
 from atlas.core.loop import ExecutionLoop
 from atlas.core.missions import (
     Mission, parse_task_plan, PLANNING_PROMPT_TEMPLATE, PLANNING_SYSTEM_PROMPT,
@@ -154,7 +157,17 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
     policy = PolicyEngine(autonomy_level=autonomy_level)
     audit = AuditLogger(db=db.db)
     await audit.initialize()
-    approval = ApprovalWorkflow(auto_approve=auto_approve)
+
+    # Initialize control plane completion components
+    emergency = EmergencyController()
+    rule_store = ApprovalRuleStore(db)
+    trust_tracker = TrustTracker(
+        db=db,
+        escalation_threshold=config.trust.escalation_threshold,
+        demotion_failure_count=config.trust.demotion_failure_count,
+        demotion_window_size=config.trust.demotion_window_size,
+    )
+    approval = ApprovalWorkflow(auto_approve=auto_approve, rule_store=rule_store)
 
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
@@ -225,6 +238,8 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         search_limit=config.memory.vector_search.search_limit,
         semantic_weight=config.memory.vector_search.semantic_weight,
         keyword_weight=config.memory.vector_search.keyword_weight,
+        emergency_controller=emergency,
+        trust_tracker=trust_tracker,
     )
 
     try:
@@ -302,24 +317,10 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
                 response = "n"
 
             if response in ("y", "yes"):
-                from atlas.control.trust import TrustTracker
-                trust_tracker = TrustTracker(
-                    db=db,
-                    escalation_threshold=config.trust.escalation_threshold,
-                    demotion_failure_count=config.trust.demotion_failure_count,
-                    demotion_window_size=config.trust.demotion_window_size,
-                )
                 for rec in result.trust_recommendations:
                     await trust_tracker.resolve_recommendation(rec.recommendation_id, accepted=True)
                 click.echo("[trust] All recommendations accepted.")
             elif response == "select":
-                from atlas.control.trust import TrustTracker
-                trust_tracker = TrustTracker(
-                    db=db,
-                    escalation_threshold=config.trust.escalation_threshold,
-                    demotion_failure_count=config.trust.demotion_failure_count,
-                    demotion_window_size=config.trust.demotion_window_size,
-                )
                 for rec in result.trust_recommendations:
                     try:
                         choice = input(f"  {rec.skill_id} → {rec.recommended_level}? (y/n): ").strip().lower()
@@ -392,7 +393,17 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
     policy = PolicyEngine(autonomy_level=AutonomyLevel.ACT_WITHIN_BOUNDS)
     audit = AuditLogger(db=db.db)
     await audit.initialize()
-    approval = ApprovalWorkflow(auto_approve=True)  # daemon mode auto-approves
+
+    # Initialize control plane completion components
+    emergency = EmergencyController()
+    rule_store = ApprovalRuleStore(db)
+    trust_tracker = TrustTracker(
+        db=db,
+        escalation_threshold=config.trust.escalation_threshold,
+        demotion_failure_count=config.trust.demotion_failure_count,
+        demotion_window_size=config.trust.demotion_window_size,
+    )
+    approval = ApprovalWorkflow(auto_approve=True, rule_store=rule_store)  # daemon mode auto-approves
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
@@ -462,6 +473,8 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         search_limit=config.memory.vector_search.search_limit,
         semantic_weight=config.memory.vector_search.semantic_weight,
         keyword_weight=config.memory.vector_search.keyword_weight,
+        emergency_controller=emergency,
+        trust_tracker=trust_tracker,
     )
 
     async def goal_executor(goal_text: str) -> dict:
@@ -536,6 +549,10 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
                 audit=audit,
                 registry=registry,
                 goal_handler=goal_executor,
+                config=config,
+                emergency_controller=emergency,
+                approval_rule_store=rule_store,
+                trust_tracker=trust_tracker,
             )
             dashboard_app = dashboard_server.create_app()
             for resource in dashboard_app.router.resources():
@@ -551,6 +568,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         http_app=http_app,
         http_host=config.webhook.host,
         http_port=config.webhook.port,
+        emergency_controller=emergency,
     )
 
     try:

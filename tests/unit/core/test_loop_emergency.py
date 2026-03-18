@@ -89,6 +89,6 @@ async def test_execution_loop_kill_cancels_task(components):
     emergency.clear_active_task()
 
     mission = Mission(goal_text="test", tasks=[task])
-    result = await loop.execute_mission(mission)
+    await loop.execute_mission(mission)  # result unused — only checking task status
     # Task should be cancelled since we killed it before execution
     assert task.status == TaskStatus.CANCELLED
