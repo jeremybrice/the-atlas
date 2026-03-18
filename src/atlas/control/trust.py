@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from atlas.contracts.types import AutonomyLevel, ExecutionContext, TrustRecord
+from atlas.contracts.types import AutonomyLevel, ExecutionContext, TrustRecord, TrustRecommendation
 from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
@@ -167,3 +167,115 @@ class TrustTracker:
             ),
         )
         await self._db.db.commit()
+
+    # --- Escalation levels ---
+    _ESCALATION_ORDER = [AutonomyLevel.OBSERVE, AutonomyLevel.SUGGEST, AutonomyLevel.ACT_WITHIN_BOUNDS]
+
+    def _next_level(self, current: AutonomyLevel | None, direction: str) -> str:
+        """Compute the next autonomy level name given direction."""
+        order = self._ESCALATION_ORDER
+        if current is None:
+            idx = 0  # treat None as implicitly at OBSERVE
+        else:
+            idx = order.index(current) if current in order else 0
+
+        if direction == "escalate":
+            next_idx = min(idx + 1, len(order) - 1)
+        else:  # demote
+            next_idx = max(idx - 1, 0)
+
+        return order[next_idx].name
+
+    async def create_recommendation(
+        self, skill_id: str, direction: str, mission_id: str | None = None,
+    ) -> TrustRecommendation:
+        """Create and persist a trust recommendation."""
+        record = await self.get_record(skill_id)
+        total = record.total_invocations or 1
+        success_rate = round(record.successes / total, 3)
+
+        current_name = record.autonomy_override.name if record.autonomy_override else "NONE"
+        recommended_name = self._next_level(record.autonomy_override, direction)
+
+        evidence = {
+            "success_rate": success_rate,
+            "sample_size": record.total_invocations,
+            "consecutive_successes": record.consecutive_successes,
+            "failures": record.failures,
+        }
+
+        rec = TrustRecommendation(
+            skill_id=skill_id,
+            current_level=current_name,
+            recommended_level=recommended_name,
+            direction=direction,
+            evidence=evidence,
+            mission_id=mission_id,
+        )
+
+        await self._db.db.execute(
+            """INSERT INTO trust_recommendations
+               (recommendation_id, skill_id, current_level, recommended_level,
+                direction, evidence, status, mission_id, created_at, resolved_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                rec.recommendation_id,
+                rec.skill_id,
+                rec.current_level,
+                rec.recommended_level,
+                rec.direction,
+                json.dumps(rec.evidence),
+                rec.status,
+                rec.mission_id,
+                rec.created_at,
+                rec.resolved_at,
+            ),
+        )
+        await self._db.db.commit()
+        logger.info("Created trust recommendation: %s %s %s → %s",
+                     rec.recommendation_id[:8], direction, skill_id, recommended_name)
+        return rec
+
+    async def list_recommendations(self, status: str = "pending") -> list[TrustRecommendation]:
+        """List recommendations filtered by status."""
+        cursor = await self._db.db.execute(
+            "SELECT recommendation_id, skill_id, current_level, recommended_level, "
+            "direction, evidence, status, mission_id, created_at, resolved_at "
+            "FROM trust_recommendations WHERE status = ? ORDER BY created_at DESC",
+            (status,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            TrustRecommendation(
+                recommendation_id=r[0], skill_id=r[1], current_level=r[2],
+                recommended_level=r[3], direction=r[4], evidence=json.loads(r[5]),
+                status=r[6], mission_id=r[7], created_at=r[8], resolved_at=r[9],
+            )
+            for r in rows
+        ]
+
+    async def resolve_recommendation(self, recommendation_id: str, accepted: bool) -> None:
+        """Accept or dismiss a recommendation. If accepted, apply the autonomy override."""
+        new_status = "accepted" if accepted else "dismissed"
+        now = datetime.now(timezone.utc).isoformat()
+
+        await self._db.db.execute(
+            "UPDATE trust_recommendations SET status = ?, resolved_at = ? "
+            "WHERE recommendation_id = ?",
+            (new_status, now, recommendation_id),
+        )
+        await self._db.db.commit()
+
+        if accepted:
+            # Look up the recommendation to apply the override
+            cursor = await self._db.db.execute(
+                "SELECT skill_id, recommended_level FROM trust_recommendations "
+                "WHERE recommendation_id = ?",
+                (recommendation_id,),
+            )
+            row = await cursor.fetchone()
+            if row:
+                skill_id, level_name = row
+                level = AutonomyLevel[level_name]
+                await self.set_autonomy_override(skill_id, level)
+                logger.info("Applied trust recommendation: %s → %s", skill_id, level_name)
