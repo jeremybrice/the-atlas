@@ -287,3 +287,36 @@ class TrustRecord:
     last_outcome: str = ""
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     recent_outcomes: str = "[]"
+
+
+# --- Phase 3: Approval Rules ---
+
+@dataclass
+class ApprovalRule:
+    """Persistent rule for auto-approving or auto-denying actions."""
+    rule_id: str = field(default_factory=new_id)
+    rule_type: str = "standing"
+    match_skill: str = "*"
+    match_risk: str = "*"
+    match_path: str | None = None
+    decision: str = "allow"
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    expires_at: str | None = None
+    description: str = ""
+
+
+# --- Phase 3: Trust Recommendations ---
+
+@dataclass
+class TrustRecommendation:
+    """Recommendation to escalate or demote a skill's autonomy level."""
+    recommendation_id: str = field(default_factory=new_id)
+    skill_id: str = ""
+    current_level: str = ""
+    recommended_level: str = ""
+    direction: str = ""
+    evidence: dict[str, Any] = field(default_factory=dict)
+    status: str = "pending"
+    mission_id: str | None = None
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    resolved_at: str | None = None

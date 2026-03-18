@@ -154,6 +154,31 @@ class DatabaseStore:
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS approval_rules (
+                rule_id TEXT PRIMARY KEY,
+                rule_type TEXT NOT NULL,
+                match_skill TEXT NOT NULL,
+                match_risk TEXT NOT NULL,
+                match_path TEXT,
+                decision TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT,
+                description TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS trust_recommendations (
+                recommendation_id TEXT PRIMARY KEY,
+                skill_id TEXT NOT NULL,
+                current_level TEXT NOT NULL,
+                recommended_level TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                evidence TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                mission_id TEXT,
+                created_at TEXT NOT NULL,
+                resolved_at TEXT
+            );
         """)
         await self._db.commit()
         await self._rebuild_fts5()
