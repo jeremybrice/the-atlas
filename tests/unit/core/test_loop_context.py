@@ -25,7 +25,9 @@ def mock_components():
     )
 
     runtime = MagicMock()
-    runtime.invoke = AsyncMock(return_value=SkillResult(status="success", output="done"))
+    runtime.invoke = AsyncMock(
+        return_value=SkillResult(status="success", output="done")
+    )
 
     env = MagicMock()
     env.claude_oneshot = AsyncMock(return_value=ClaudeResponse(content='{"tasks":[]}'))
@@ -52,7 +54,14 @@ async def test_execution_loop_calls_context_assembler(mock_components):
 
     assembler = MagicMock(spec=ContextAssembler)
     assembler.assemble.return_value = ContextBundle(
-        contents=[{"source": "past-episode", "text": "relevant context", "tokens": 10, "truncated": False}],
+        contents=[
+            {
+                "source": "past-episode",
+                "text": "relevant context",
+                "tokens": 10,
+                "truncated": False,
+            }
+        ],
         total_tokens=10,
         budget_tokens=4000,
     )
@@ -69,7 +78,11 @@ async def test_execution_loop_calls_context_assembler(mock_components):
         context_assembler=assembler,
     )
 
-    task = Task(description="run tests", skill_id="shell.execute", input_params={"command": "pytest"})
+    task = Task(
+        description="run tests",
+        skill_id="shell.execute",
+        input_params={"command": "pytest"},
+    )
     mission = Mission(goal_text="test the project", tasks=[task])
 
     await loop.execute_mission(mission)
@@ -91,7 +104,11 @@ async def test_execution_loop_works_without_assembler(mock_components):
         episodic_memory=episodic,
     )
 
-    task = Task(description="run tests", skill_id="shell.execute", input_params={"command": "pytest"})
+    task = Task(
+        description="run tests",
+        skill_id="shell.execute",
+        input_params={"command": "pytest"},
+    )
     mission = Mission(goal_text="test the project", tasks=[task])
 
     result = await loop.execute_mission(mission)

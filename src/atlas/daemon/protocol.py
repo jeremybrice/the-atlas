@@ -1,4 +1,5 @@
 """Daemon socket protocol -- JSON-over-Unix-socket with length prefix."""
+
 import asyncio
 import json
 import logging
@@ -14,7 +15,9 @@ HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
 
 def encode_message(obj: Any) -> bytes:
-    data = json.dumps(asdict(obj) if hasattr(obj, "__dataclass_fields__") else obj).encode()
+    data = json.dumps(
+        asdict(obj) if hasattr(obj, "__dataclass_fields__") else obj
+    ).encode()
     return struct.pack(HEADER_FORMAT, len(data)) + data
 
 
@@ -41,14 +44,18 @@ async def _write_message(writer: asyncio.StreamWriter, data: dict) -> None:
 
 
 class DaemonSocketServer:
-    def __init__(self, socket_path: str, handler: Callable[[dict], Coroutine[Any, Any, dict]]):
+    def __init__(
+        self, socket_path: str, handler: Callable[[dict], Coroutine[Any, Any, dict]]
+    ):
         self._socket_path = socket_path
         self._handler = handler
         self._server: asyncio.AbstractServer | None = None
 
     async def start(self) -> None:
         Path(self._socket_path).unlink(missing_ok=True)
-        self._server = await asyncio.start_unix_server(self._handle_client, path=self._socket_path)
+        self._server = await asyncio.start_unix_server(
+            self._handle_client, path=self._socket_path
+        )
 
     async def stop(self) -> None:
         if self._server:
@@ -56,7 +63,9 @@ class DaemonSocketServer:
             await self._server.wait_closed()
         Path(self._socket_path).unlink(missing_ok=True)
 
-    async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def _handle_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         try:
             request = await _read_message(reader)
             if request:
@@ -76,7 +85,9 @@ class DaemonSocketClient:
     async def send(self, command: Any) -> dict:
         reader, writer = await asyncio.open_unix_connection(self._socket_path)
         try:
-            encoded = json.dumps(asdict(command) if hasattr(command, "__dataclass_fields__") else command).encode()
+            encoded = json.dumps(
+                asdict(command) if hasattr(command, "__dataclass_fields__") else command
+            ).encode()
             writer.write(struct.pack(HEADER_FORMAT, len(encoded)) + encoded)
             await writer.drain()
             response = await _read_message(reader)

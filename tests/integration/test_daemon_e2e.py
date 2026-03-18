@@ -38,9 +38,12 @@ async def test_daemon_full_lifecycle():
     assert status["payload"]["running"] is True
 
     # Submit goal
-    result = await client.send(DaemonCommand(
-        command="goal", payload={"goal_text": "test goal"},
-    ))
+    result = await client.send(
+        DaemonCommand(
+            command="goal",
+            payload={"goal_text": "test goal"},
+        )
+    )
     assert result["status"] == "ok"
     assert len(goals_executed) == 1
 

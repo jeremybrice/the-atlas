@@ -6,12 +6,22 @@ from atlas.core.missions import parse_task_plan
 
 
 def test_parse_task_plan_json():
-    raw = json.dumps({
-        "tasks": [
-            {"description": "Read the file", "skill": "file.read", "params": {"path": "main.py"}},
-            {"description": "Modify the code", "skill": "file.write", "params": {"path": "main.py", "content": "new"}},
-        ]
-    })
+    raw = json.dumps(
+        {
+            "tasks": [
+                {
+                    "description": "Read the file",
+                    "skill": "file.read",
+                    "params": {"path": "main.py"},
+                },
+                {
+                    "description": "Modify the code",
+                    "skill": "file.write",
+                    "params": {"path": "main.py", "content": "new"},
+                },
+            ]
+        }
+    )
     tasks = parse_task_plan(raw)
     assert len(tasks) == 2
     assert tasks[0].skill_id == "file.read"
@@ -20,11 +30,11 @@ def test_parse_task_plan_json():
 
 
 def test_parse_task_plan_json_in_markdown():
-    raw = '''Here's the plan:
+    raw = """Here's the plan:
 ```json
 {"tasks": [{"description": "Run tests", "skill": "shell.execute", "params": {"command": "pytest"}}]}
 ```
-That should work.'''
+That should work."""
     tasks = parse_task_plan(raw)
     assert len(tasks) == 1
     assert tasks[0].skill_id == "shell.execute"

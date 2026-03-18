@@ -33,10 +33,12 @@ async def test_execution_loop_triggers_forge_on_missing_skill(tmp_path):
 
     # Mock only the Claude bridge
     mock_claude = AsyncMock(spec=ClaudeCodeBridge)
-    mock_claude.oneshot = AsyncMock(return_value=ClaudeResponse(
-        content="not valid skill code",
-        parsed_output=None,
-    ))
+    mock_claude.oneshot = AsyncMock(
+        return_value=ClaudeResponse(
+            content="not valid skill code",
+            parsed_output=None,
+        )
+    )
 
     env = EnvironmentFacade(filesystem=fs, process=proc, claude=mock_claude)
     registry = SkillRegistry()

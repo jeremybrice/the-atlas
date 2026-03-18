@@ -18,7 +18,9 @@ async def rule_store(db):
 
 
 async def test_add_and_list_rule(rule_store):
-    rule = ApprovalRule(match_skill="file.*", decision="allow", description="allow all file ops")
+    rule = ApprovalRule(
+        match_skill="file.*", decision="allow", description="allow all file ops"
+    )
     rule_id = await rule_store.add_rule(rule)
     assert rule_id == rule.rule_id
 
@@ -59,7 +61,9 @@ async def test_find_matching_skill_glob(rule_store):
 
 
 async def test_find_matching_wildcard_skill(rule_store):
-    await rule_store.add_rule(ApprovalRule(match_skill="*", match_risk="low", decision="allow"))
+    await rule_store.add_rule(
+        ApprovalRule(match_skill="*", match_risk="low", decision="allow")
+    )
 
     action = ProposedAction(
         action_type="skill_invoke:shell.execute",
@@ -73,7 +77,9 @@ async def test_find_matching_wildcard_skill(rule_store):
 
 
 async def test_find_matching_respects_risk_level(rule_store):
-    await rule_store.add_rule(ApprovalRule(match_skill="*", match_risk="low", decision="allow"))
+    await rule_store.add_rule(
+        ApprovalRule(match_skill="*", match_risk="low", decision="allow")
+    )
 
     action = ProposedAction(
         action_type="skill_invoke:shell.execute",
@@ -102,11 +108,13 @@ async def test_find_matching_deny_rule(rule_store):
 
 
 async def test_expired_rules_are_skipped(rule_store):
-    await rule_store.add_rule(ApprovalRule(
-        match_skill="file.*",
-        decision="allow",
-        expires_at="2020-01-01T00:00:00+00:00",  # already expired
-    ))
+    await rule_store.add_rule(
+        ApprovalRule(
+            match_skill="file.*",
+            decision="allow",
+            expires_at="2020-01-01T00:00:00+00:00",  # already expired
+        )
+    )
 
     action = ProposedAction(
         action_type="skill_invoke:file.read",

@@ -30,6 +30,7 @@ def tmp_workspace(tmp_path: Path) -> Path:
 async def db(tmp_path: Path) -> AsyncIterator:
     """Provides an initialized DatabaseStore backed by a temporary SQLite file."""
     from atlas.memory.store import DatabaseStore
+
     store = DatabaseStore(str(tmp_path / "test.db"))
     await store.initialize()
     yield store

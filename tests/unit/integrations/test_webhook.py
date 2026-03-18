@@ -14,11 +14,14 @@ async def _noop_callback(e):
 @pytest.fixture
 def bridge():
     b = EventBridge()
-    b.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK,
-        source="github",
-        payload={**p, "github_event": et},
-    ))
+    b.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload={**p, "github_event": et},
+        ),
+    )
     return b
 
 
@@ -42,11 +45,15 @@ async def webhook_server(bridge, received_events):
 
 async def test_webhook_app_has_routes(webhook_server):
     app = webhook_server.create_app()
-    routes = [r.resource.canonical for r in app.router.routes() if hasattr(r, "resource")]
+    routes = [
+        r.resource.canonical for r in app.router.routes() if hasattr(r, "resource")
+    ]
     assert "/webhooks/{service}" in routes
 
 
-async def test_webhook_handles_github_post(webhook_server, received_events, aiohttp_client):
+async def test_webhook_handles_github_post(
+    webhook_server, received_events, aiohttp_client
+):
     app = webhook_server.create_app()
     client = await aiohttp_client(app)
 
@@ -85,16 +92,23 @@ async def test_health_endpoint(webhook_server, aiohttp_client):
 
 async def test_webhook_rejects_invalid_signature(aiohttp_client):
     bridge = EventBridge()
-    bridge.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK, source="github", payload=p,
-    ))
+    bridge.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload=p,
+        ),
+    )
     server = WebhookServer(
-        event_bridge=bridge, event_callback=_noop_callback,
+        event_bridge=bridge,
+        event_callback=_noop_callback,
         secrets={"github": "my-secret"},
     )
     client = await aiohttp_client(server.create_app())
     resp = await client.post(
-        "/webhooks/github", json={"action": "opened"},
+        "/webhooks/github",
+        json={"action": "opened"},
         headers={"X-GitHub-Event": "push", "X-Hub-Signature-256": "sha256=bad"},
     )
     assert resp.status == 403
@@ -102,9 +116,14 @@ async def test_webhook_rejects_invalid_signature(aiohttp_client):
 
 async def test_webhook_accepts_valid_signature(aiohttp_client):
     bridge = EventBridge()
-    bridge.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK, source="github", payload=p,
-    ))
+    bridge.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload=p,
+        ),
+    )
     received = []
 
     async def on_event(e):
@@ -119,8 +138,13 @@ async def test_webhook_accepts_valid_signature(aiohttp_client):
     body = b'{"action":"opened"}'
     sig = "sha256=" + hmac_mod.new(b"my-secret", body, hashlib.sha256).hexdigest()
     resp = await client.post(
-        "/webhooks/github", data=body,
-        headers={"X-GitHub-Event": "push", "X-Hub-Signature-256": sig, "Content-Type": "application/json"},
+        "/webhooks/github",
+        data=body,
+        headers={
+            "X-GitHub-Event": "push",
+            "X-Hub-Signature-256": sig,
+            "Content-Type": "application/json",
+        },
     )
     assert resp.status == 200
     assert len(received) == 1

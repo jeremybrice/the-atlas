@@ -9,7 +9,8 @@ from atlas.core.loop import ExecutionLoop
 from atlas.core.missions import Mission
 from atlas.core.tasks import Task
 from atlas.contracts.types import (
-    AutonomyLevel, TaskStatus,
+    AutonomyLevel,
+    TaskStatus,
 )
 from atlas.memory.episodic import EpisodicMemoryStore
 from atlas.memory.working import WorkingMemoryStore
@@ -20,6 +21,7 @@ from atlas.skills.runtime import InvocationRuntime
 @pytest.fixture
 async def db(tmp_path):
     from atlas.memory.store import DatabaseStore
+
     store = DatabaseStore(str(tmp_path / "test.db"))
     await store.initialize()
     yield store
@@ -63,7 +65,11 @@ async def test_execution_loop_pauses_between_tasks(components):
     # Pause before execution starts
     emergency.pause()
 
-    task = Task(description="read a file", skill_id="file.read", input_params={"path": "test.txt"})
+    task = Task(
+        description="read a file",
+        skill_id="file.read",
+        input_params={"path": "test.txt"},
+    )
     mission = Mission(goal_text="test", tasks=[task])
 
     # Mission should not complete while paused
@@ -82,7 +88,11 @@ async def test_execution_loop_kill_cancels_task(components):
     emergency = EmergencyController()
     loop = ExecutionLoop(**components, emergency_controller=emergency)
 
-    task = Task(description="read a file", skill_id="file.read", input_params={"path": "test.txt"})
+    task = Task(
+        description="read a file",
+        skill_id="file.read",
+        input_params={"path": "test.txt"},
+    )
 
     # Pre-mark as active and kill so the cancelled set is populated
     emergency.set_active_task(task.task_id)

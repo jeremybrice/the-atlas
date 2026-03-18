@@ -73,6 +73,7 @@ async def test_missions_endpoint(dashboard, aiohttp_client):
 async def test_skills_endpoint(dashboard, registry, aiohttp_client):
     async def noop(p):
         return {}
+
     registry.register("test.skill", "Test Skill", "A test", noop, "low")
 
     app = dashboard.create_app()
@@ -86,12 +87,14 @@ async def test_skills_endpoint(dashboard, registry, aiohttp_client):
 
 
 async def test_audit_endpoint(dashboard, audit, aiohttp_client):
-    await audit.log(AuditEntry(
-        actor="test",
-        action_type="test_action",
-        outcome="success",
-        policy_decision=PolicyDecision.ALLOW,
-    ))
+    await audit.log(
+        AuditEntry(
+            actor="test",
+            action_type="test_action",
+            outcome="success",
+            policy_decision=PolicyDecision.ALLOW,
+        )
+    )
 
     app = dashboard.create_app()
     client = await aiohttp_client(app)
@@ -146,6 +149,7 @@ async def test_memory_stats_endpoint(dashboard, aiohttp_client):
 @pytest.fixture
 async def full_dashboard(db, audit, registry, received_goals):
     from atlas.config import load_config
+
     config = load_config()
 
     async def goal_handler(goal_text: str) -> dict:
@@ -155,12 +159,16 @@ async def full_dashboard(db, audit, registry, received_goals):
     emergency = EmergencyController()
     rule_store = ApprovalRuleStore(db)
     trust_tracker = TrustTracker(
-        db=db, escalation_threshold=10,
-        demotion_failure_count=3, demotion_window_size=5,
+        db=db,
+        escalation_threshold=10,
+        demotion_failure_count=3,
+        demotion_window_size=5,
     )
 
     server = DashboardServer(
-        db=db, audit=audit, registry=registry,
+        db=db,
+        audit=audit,
+        registry=registry,
         goal_handler=goal_handler,
         config=config,
         emergency_controller=emergency,

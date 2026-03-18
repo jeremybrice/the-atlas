@@ -1,11 +1,17 @@
 """Trust Tracker — tracks per-skill success/failure and suggests autonomy changes."""
+
 import json
 import logging
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from atlas.contracts.types import AutonomyLevel, ExecutionContext, TrustRecord, TrustRecommendation
+from atlas.contracts.types import (
+    AutonomyLevel,
+    ExecutionContext,
+    TrustRecord,
+    TrustRecommendation,
+)
 from atlas.memory.store import DatabaseStore
 
 logger = logging.getLogger(__name__)
@@ -14,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TrustOutcome:
     """Result of recording an outcome — indicates if escalation/demotion should happen."""
+
     skill_id: str
     should_escalate: bool = False
     should_demote: bool = False
@@ -41,7 +48,9 @@ class TrustTracker:
             return f"[{ctx.correlation_id}] "
         return ""
 
-    async def record_outcome(self, skill_id: str, success: bool, ctx: ExecutionContext | None = None) -> TrustOutcome:
+    async def record_outcome(
+        self, skill_id: str, success: bool, ctx: ExecutionContext | None = None
+    ) -> TrustOutcome:
         record = await self.get_record(skill_id)
         recent = await self._load_recent(skill_id)
 
@@ -75,7 +84,12 @@ class TrustTracker:
         record.updated_at = datetime.now(timezone.utc).isoformat()
         await self._save_record(record, recent)
 
-        logger.debug("%sRecorded outcome for %s: %s", self._log_ctx(ctx), skill_id, "success" if success else "failure")
+        logger.debug(
+            "%sRecorded outcome for %s: %s",
+            self._log_ctx(ctx),
+            skill_id,
+            "success" if success else "failure",
+        )
 
         return outcome
 
@@ -95,7 +109,9 @@ class TrustTracker:
         outcomes = json.loads(row[0])
         return deque(outcomes, maxlen=self._demotion_window_size)
 
-    async def get_record(self, skill_id: str, ctx: ExecutionContext | None = None) -> TrustRecord:
+    async def get_record(
+        self, skill_id: str, ctx: ExecutionContext | None = None
+    ) -> TrustRecord:
         cursor = await self._db.db.execute(
             "SELECT skill_id, successes, failures, consecutive_successes, "
             "total_invocations, autonomy_override, last_outcome, updated_at, "
@@ -108,7 +124,9 @@ class TrustTracker:
             return TrustRecord(skill_id=skill_id)
 
         autonomy_val = row[5]
-        autonomy_override = AutonomyLevel(int(autonomy_val)) if autonomy_val is not None else None
+        autonomy_override = (
+            AutonomyLevel(int(autonomy_val)) if autonomy_val is not None else None
+        )
 
         return TrustRecord(
             skill_id=row[0],
@@ -122,22 +140,32 @@ class TrustTracker:
             recent_outcomes=row[8] if row[8] is not None else "[]",
         )
 
-    async def set_autonomy_override(self, skill_id: str, level: AutonomyLevel, ctx: ExecutionContext | None = None) -> None:
+    async def set_autonomy_override(
+        self, skill_id: str, level: AutonomyLevel, ctx: ExecutionContext | None = None
+    ) -> None:
         record = await self.get_record(skill_id)
         recent = await self._load_recent(skill_id)
         record.autonomy_override = level
         record.updated_at = datetime.now(timezone.utc).isoformat()
         await self._save_record(record, recent)
-        logger.info("%sTrust override set: %s -> %s", self._log_ctx(ctx), skill_id, level.name)
+        logger.info(
+            "%sTrust override set: %s -> %s", self._log_ctx(ctx), skill_id, level.name
+        )
 
-    async def get_autonomy_override(self, skill_id: str, ctx: ExecutionContext | None = None) -> AutonomyLevel | None:
+    async def get_autonomy_override(
+        self, skill_id: str, ctx: ExecutionContext | None = None
+    ) -> AutonomyLevel | None:
         record = await self.get_record(skill_id)
         if record.total_invocations == 0 and record.autonomy_override is None:
             return None
         return record.autonomy_override
 
     async def _save_record(self, record: TrustRecord, recent: deque[bool]) -> None:
-        autonomy_val = record.autonomy_override.value if record.autonomy_override is not None else None
+        autonomy_val = (
+            record.autonomy_override.value
+            if record.autonomy_override is not None
+            else None
+        )
         recent_json = json.dumps(list(recent))
         await self._db.db.execute(
             """INSERT INTO trust_records
@@ -169,7 +197,11 @@ class TrustTracker:
         await self._db.db.commit()
 
     # --- Escalation levels ---
-    _ESCALATION_ORDER = [AutonomyLevel.OBSERVE, AutonomyLevel.SUGGEST, AutonomyLevel.ACT_WITHIN_BOUNDS]
+    _ESCALATION_ORDER = [
+        AutonomyLevel.OBSERVE,
+        AutonomyLevel.SUGGEST,
+        AutonomyLevel.ACT_WITHIN_BOUNDS,
+    ]
 
     def _next_level(self, current: AutonomyLevel | None, direction: str) -> str:
         """Compute the next autonomy level name given direction."""
@@ -187,14 +219,19 @@ class TrustTracker:
         return order[next_idx].name
 
     async def create_recommendation(
-        self, skill_id: str, direction: str, mission_id: str | None = None,
+        self,
+        skill_id: str,
+        direction: str,
+        mission_id: str | None = None,
     ) -> TrustRecommendation:
         """Create and persist a trust recommendation."""
         record = await self.get_record(skill_id)
         total = record.total_invocations or 1
         success_rate = round(record.successes / total, 3)
 
-        current_name = record.autonomy_override.name if record.autonomy_override else "NONE"
+        current_name = (
+            record.autonomy_override.name if record.autonomy_override else "NONE"
+        )
         recommended_name = self._next_level(record.autonomy_override, direction)
 
         evidence = {
@@ -232,11 +269,18 @@ class TrustTracker:
             ),
         )
         await self._db.db.commit()
-        logger.info("Created trust recommendation: %s %s %s → %s",
-                     rec.recommendation_id[:8], direction, skill_id, recommended_name)
+        logger.info(
+            "Created trust recommendation: %s %s %s → %s",
+            rec.recommendation_id[:8],
+            direction,
+            skill_id,
+            recommended_name,
+        )
         return rec
 
-    async def list_recommendations(self, status: str = "pending") -> list[TrustRecommendation]:
+    async def list_recommendations(
+        self, status: str = "pending"
+    ) -> list[TrustRecommendation]:
         """List recommendations filtered by status."""
         cursor = await self._db.db.execute(
             "SELECT recommendation_id, skill_id, current_level, recommended_level, "
@@ -247,14 +291,23 @@ class TrustTracker:
         rows = await cursor.fetchall()
         return [
             TrustRecommendation(
-                recommendation_id=r[0], skill_id=r[1], current_level=r[2],
-                recommended_level=r[3], direction=r[4], evidence=json.loads(r[5]),
-                status=r[6], mission_id=r[7], created_at=r[8], resolved_at=r[9],
+                recommendation_id=r[0],
+                skill_id=r[1],
+                current_level=r[2],
+                recommended_level=r[3],
+                direction=r[4],
+                evidence=json.loads(r[5]),
+                status=r[6],
+                mission_id=r[7],
+                created_at=r[8],
+                resolved_at=r[9],
             )
             for r in rows
         ]
 
-    async def resolve_recommendation(self, recommendation_id: str, accepted: bool) -> None:
+    async def resolve_recommendation(
+        self, recommendation_id: str, accepted: bool
+    ) -> None:
         """Accept or dismiss a recommendation. If accepted, apply the autonomy override."""
         new_status = "accepted" if accepted else "dismissed"
         now = datetime.now(timezone.utc).isoformat()
@@ -278,4 +331,6 @@ class TrustTracker:
                 skill_id, level_name = row
                 level = AutonomyLevel[level_name]
                 await self.set_autonomy_override(skill_id, level)
-                logger.info("Applied trust recommendation: %s → %s", skill_id, level_name)
+                logger.info(
+                    "Applied trust recommendation: %s → %s", skill_id, level_name
+                )

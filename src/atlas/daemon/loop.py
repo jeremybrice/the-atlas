@@ -1,4 +1,5 @@
 """Daemon main loop -- runs the socket server and dispatches commands."""
+
 import asyncio
 import logging
 import os
@@ -55,6 +56,7 @@ class DaemonLoop:
         # Start HTTP server if configured
         if self._http_app:
             from aiohttp import web
+
             self._http_runner = web.AppRunner(self._http_app)
             await self._http_runner.setup()
             site = web.TCPSite(self._http_runner, self._http_host, self._http_port)
@@ -66,10 +68,14 @@ class DaemonLoop:
                 logger.error(
                     "Failed to start HTTP server on %s:%d — %s. "
                     "Daemon continues without HTTP.",
-                    self._http_host, self._http_port, e,
+                    self._http_host,
+                    self._http_port,
+                    e,
                 )
             else:
-                logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
+                logger.info(
+                    "HTTP server started on %s:%d", self._http_host, self._http_port
+                )
                 self._http_running = True
 
         while self._running:
@@ -97,24 +103,50 @@ class DaemonLoop:
             case "status":
                 return self._handle_status(command_id)
             case "shutdown":
-                asyncio.get_event_loop().call_soon(lambda: asyncio.ensure_future(self.stop()))
-                return {"command_id": command_id, "status": "ok", "payload": {"message": "shutting down"}}
+                asyncio.get_event_loop().call_soon(
+                    lambda: asyncio.ensure_future(self.stop())
+                )
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "shutting down"},
+                }
             case "pause":
                 self._emergency.pause()
-                return {"command_id": command_id, "status": "ok", "payload": {"message": "paused"}}
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "paused"},
+                }
             case "resume":
                 self._emergency.resume()
-                return {"command_id": command_id, "status": "ok", "payload": {"message": "resumed"}}
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "resumed"},
+                }
             case "kill":
                 task_id = data.get("payload", {}).get("task_id", "")
                 killed = self._emergency.kill_task(task_id)
-                return {"command_id": command_id, "status": "ok", "payload": {"killed": killed}}
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"killed": killed},
+                }
             case _:
-                return {"command_id": command_id, "status": "error", "error": f"unknown command: {command}"}
+                return {
+                    "command_id": command_id,
+                    "status": "error",
+                    "error": f"unknown command: {command}",
+                }
 
     async def _handle_goal(self, command_id: str, payload: dict) -> dict:
         if not self._goal_executor:
-            return {"command_id": command_id, "status": "error", "error": "no goal executor configured"}
+            return {
+                "command_id": command_id,
+                "status": "error",
+                "error": "no goal executor configured",
+            }
         try:
             result = await self._goal_executor(payload.get("goal_text", ""))
             return {"command_id": command_id, "status": "ok", "payload": result}
@@ -148,7 +180,10 @@ class DaemonLoop:
             server_name = server_cfg.get("name", "")
             if not server_name:
                 continue
-            logger.info("MCP server configured: %s (connection deferred to first use)", server_name)
+            logger.info(
+                "MCP server configured: %s (connection deferred to first use)",
+                server_name,
+            )
 
     def _disconnect_mcp_servers(self) -> None:
         """Unregister all MCP server tools on shutdown."""

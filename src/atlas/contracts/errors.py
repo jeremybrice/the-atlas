@@ -31,6 +31,7 @@ class FatalError(AtlasError):
 
 # --- Control Plane ---
 
+
 class PermissionDeniedError(FatalError):
     """Action was denied by the Policy Engine."""
 
@@ -40,6 +41,7 @@ class ApprovalTimeoutError(RetriableError):
 
 
 # --- Environment ---
+
 
 class EnvironmentActionError(RetriableError):
     """An environment action failed but may succeed on retry."""
@@ -55,6 +57,7 @@ class ClaudeCodeUnavailableError(FatalError):
 
 # --- Skills ---
 
+
 class SkillNotFoundError(FatalError):
     """Requested skill does not exist in the registry."""
 
@@ -69,6 +72,7 @@ class SkillValidationError(FatalError):
 
 # --- Memory ---
 
+
 class MemoryStoreError(RetriableError):
     """SQLite or storage operation failed transiently."""
 
@@ -78,6 +82,7 @@ class ContextBudgetExceededError(FatalError):
 
 
 # --- Integration ---
+
 
 class ConnectorError(RetriableError):
     """External service connector failed."""

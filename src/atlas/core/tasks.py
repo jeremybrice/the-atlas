@@ -11,6 +11,7 @@ from atlas.contracts.types import TaskStatus, new_id
 @dataclass
 class Task:
     """A single executable unit of work."""
+
     description: str
     task_id: str = field(default_factory=new_id)
     mission_id: str | None = None

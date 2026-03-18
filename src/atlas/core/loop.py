@@ -114,21 +114,26 @@ class ExecutionLoop:
                 if self._embedding_provider and self._vector_store:
                     # Hybrid path: combine keyword + semantic scores
                     keyword_results = await self._episodic.search_scored(
-                        mission.goal_text, limit=self._search_limit,
+                        mission.goal_text,
+                        limit=self._search_limit,
                     )
                     keyword_scores = dict(keyword_results)
 
-                    query_embedding = await self._embedding_provider.embed_query(mission.goal_text)
+                    query_embedding = await self._embedding_provider.embed_query(
+                        mission.goal_text
+                    )
                     if query_embedding is not None:
                         semantic_results = await self._vector_store.search(
-                            query_embedding, limit=self._search_limit,
+                            query_embedding,
+                            limit=self._search_limit,
                         )
                         semantic_scores = dict(semantic_results)
                     else:
                         semantic_scores = {}
 
                     merged = self._context_assembler.merge_scores(
-                        keyword_scores, semantic_scores,
+                        keyword_scores,
+                        semantic_scores,
                         semantic_weight=self._semantic_weight,
                         keyword_weight=self._keyword_weight,
                     )
@@ -139,9 +144,15 @@ class ExecutionLoop:
                         if ep:
                             episodes_by_id[eid] = ep
 
-                    bundle = self._context_assembler.assemble_ranked(query, episodes_by_id, merged)
-                    logger.info("Assembled %d tokens of hybrid context (%d keyword, %d semantic)",
-                                bundle.total_tokens, len(keyword_scores), len(semantic_scores))
+                    bundle = self._context_assembler.assemble_ranked(
+                        query, episodes_by_id, merged
+                    )
+                    logger.info(
+                        "Assembled %d tokens of hybrid context (%d keyword, %d semantic)",
+                        bundle.total_tokens,
+                        len(keyword_scores),
+                        len(semantic_scores),
+                    )
                 else:
                     # Fallback: recency-based retrieval
                     recent_episodes = await self._episodic.query_recent(limit=50)
@@ -178,16 +189,18 @@ class ExecutionLoop:
             success = await self._execute_task(task, step_ctx)
             if self._emergency:
                 self._emergency.clear_active_task()
-            actions_log.append({
-                "task_id": task.task_id,
-                "description": task.description,
-                "skill_id": task.skill_id,
-                "status": task.status.value,
-            })
+            actions_log.append(
+                {
+                    "task_id": task.task_id,
+                    "description": task.description,
+                    "skill_id": task.skill_id,
+                    "status": task.status.value,
+                }
+            )
 
             if not success and replans_remaining > 0:
                 replans_remaining -= 1
-                remaining_descs = [t.description for t in mission.tasks[i + 1:]]
+                remaining_descs = [t.description for t in mission.tasks[i + 1 :]]
                 skills_desc = ", ".join(s.skill_id for s in self._registry.list_all())
                 replan_prompt = build_replan_prompt(
                     original_goal=mission.goal_text,
@@ -199,13 +212,16 @@ class ExecutionLoop:
                 )
                 try:
                     response = await self._env.claude_oneshot(
-                        replan_prompt, system_prompt=PLANNING_SYSTEM_PROMPT,
+                        replan_prompt,
+                        system_prompt=PLANNING_SYSTEM_PROMPT,
                     )
                     new_tasks = parse_task_plan(response.content)
                     if new_tasks:
                         mission.tasks = mission.tasks[: i + 1] + new_tasks
                         total = len(mission.tasks)
-                        logger.info("Replanned: %d new tasks after failure", len(new_tasks))
+                        logger.info(
+                            "Replanned: %d new tasks after failure", len(new_tasks)
+                        )
                 except Exception as e:
                     logger.warning("Replanning failed: %s", e)
             elif not success:
@@ -213,10 +229,10 @@ class ExecutionLoop:
 
             i += 1
 
-        all_succeeded = all(
-            t.status == TaskStatus.COMPLETED for t in mission.tasks
+        all_succeeded = all(t.status == TaskStatus.COMPLETED for t in mission.tasks)
+        mission.status = (
+            MissionStatus.COMPLETED if all_succeeded else MissionStatus.FAILED
         )
-        mission.status = MissionStatus.COMPLETED if all_succeeded else MissionStatus.FAILED
 
         # Collect trust recommendations from signals gathered during execution
         trust_recommendations = []
@@ -225,7 +241,9 @@ class ExecutionLoop:
                 direction = "escalate" if signal.should_escalate else "demote"
                 try:
                     rec = await self._trust_tracker.create_recommendation(
-                        signal.skill_id, direction, mission_id=mission.mission_id,
+                        signal.skill_id,
+                        direction,
+                        mission_id=mission.mission_id,
                     )
                     trust_recommendations.append(rec)
                 except Exception as e:
@@ -234,15 +252,17 @@ class ExecutionLoop:
         mission.trust_recommendations = trust_recommendations
 
         # Record episode
-        await self._episodic.record(Episode(
-            episode_type=EpisodeType.TASK_EXECUTION,
-            trigger=mission.goal_text,
-            plan="; ".join(t.description for t in mission.tasks),
-            actions=actions_log,
-            outcome=mission.status.value,
-            mission_id=mission.mission_id,
-            correlation_id=ctx.correlation_id,
-        ))
+        await self._episodic.record(
+            Episode(
+                episode_type=EpisodeType.TASK_EXECUTION,
+                trigger=mission.goal_text,
+                plan="; ".join(t.description for t in mission.tasks),
+                actions=actions_log,
+                outcome=mission.status.value,
+                mission_id=mission.mission_id,
+                correlation_id=ctx.correlation_id,
+            )
+        )
 
         return mission
 
@@ -273,7 +293,9 @@ class ExecutionLoop:
                         return False
                 else:
                     task.status = TaskStatus.FAILED
-                    task.error = f"Skill not found and forge failed: {forge_result.error}"
+                    task.error = (
+                        f"Skill not found and forge failed: {forge_result.error}"
+                    )
                     return False
             else:
                 task.status = TaskStatus.FAILED
@@ -328,7 +350,9 @@ class ExecutionLoop:
         if self._trust_tracker and task.skill_id:
             try:
                 outcome = await self._trust_tracker.record_outcome(
-                    task.skill_id, success=success, ctx=ctx,
+                    task.skill_id,
+                    success=success,
+                    ctx=ctx,
                 )
                 if outcome.should_escalate or outcome.should_demote:
                     self._trust_signals.append(outcome)
@@ -338,16 +362,21 @@ class ExecutionLoop:
         return success
 
     async def _log_audit(
-        self, task: Task, ctx: ExecutionContext,
-        decision: PolicyDecision, outcome: str,
+        self,
+        task: Task,
+        ctx: ExecutionContext,
+        decision: PolicyDecision,
+        outcome: str,
     ) -> None:
-        await self._audit.log(AuditEntry(
-            correlation_id=ctx.correlation_id,
-            actor="core.execution_loop",
-            action_type=f"skill_invoke:{task.skill_id}",
-            action_details=task.input_params,
-            policy_decision=decision,
-            outcome=outcome,
-            mission_id=ctx.mission_id,
-            task_id=ctx.task_id,
-        ))
+        await self._audit.log(
+            AuditEntry(
+                correlation_id=ctx.correlation_id,
+                actor="core.execution_loop",
+                action_type=f"skill_invoke:{task.skill_id}",
+                action_details=task.input_params,
+                policy_decision=decision,
+                outcome=outcome,
+                mission_id=ctx.mission_id,
+                task_id=ctx.task_id,
+            )
+        )

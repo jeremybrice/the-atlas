@@ -1,5 +1,3 @@
-
-
 from atlas.contracts.types import (
     ApprovalRequest,
     ApprovalResult,

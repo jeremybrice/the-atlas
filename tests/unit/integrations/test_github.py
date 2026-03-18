@@ -8,7 +8,9 @@ from atlas.contracts.types import EventType, ObservationEvent
 
 @pytest.fixture
 def connector():
-    return GitHubConnector(token="ghp_test_token_123", owner="test-owner", repo="test-repo")
+    return GitHubConnector(
+        token="ghp_test_token_123", owner="test-owner", repo="test-repo"
+    )
 
 
 def test_service_name(connector):
@@ -44,11 +46,16 @@ async def test_execute_action_comment(connector):
     mock_response.json.return_value = {"id": 1, "body": "test comment"}
     mock_response.raise_for_status = MagicMock()
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response):
-        result = await connector.execute_action("comment", {
-            "issue_number": 1,
-            "body": "test comment",
-        })
+    with patch(
+        "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response
+    ):
+        result = await connector.execute_action(
+            "comment",
+            {
+                "issue_number": 1,
+                "body": "test comment",
+            },
+        )
     assert result["status"] == "success"
 
 
@@ -63,9 +70,13 @@ async def test_post_comment_401_raises_credential_error(connector):
     mock_resp.status_code = 401
     exc = httpx.HTTPStatusError("Unauthorized", request=MagicMock(), response=mock_resp)
     mock_resp.raise_for_status.side_effect = exc
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+    with patch(
+        "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
+    ):
         with pytest.raises(CredentialError):
-            await connector.execute_action("comment", {"issue_number": 1, "body": "test"})
+            await connector.execute_action(
+                "comment", {"issue_number": 1, "body": "test"}
+            )
 
 
 async def test_post_comment_500_raises_connector_error(connector):
@@ -74,17 +85,24 @@ async def test_post_comment_500_raises_connector_error(connector):
     mock_resp.status_code = 500
     exc = httpx.HTTPStatusError("Server Error", request=MagicMock(), response=mock_resp)
     mock_resp.raise_for_status.side_effect = exc
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+    with patch(
+        "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp
+    ):
         with pytest.raises(ConnectorError):
-            await connector.execute_action("comment", {"issue_number": 1, "body": "test"})
+            await connector.execute_action(
+                "comment", {"issue_number": 1, "body": "test"}
+            )
 
 
 async def test_handle_event_pr_opened(connector):
-    result = await connector.handle_event("pull_request", {
-        "action": "opened",
-        "number": 42,
-        "pull_request": {"title": "Fix bug"},
-    })
+    result = await connector.handle_event(
+        "pull_request",
+        {
+            "action": "opened",
+            "number": 42,
+            "pull_request": {"title": "Fix bug"},
+        },
+    )
     assert result["handled"] is True
     assert result["event_type"] == "pull_request"
 
@@ -92,7 +110,10 @@ async def test_handle_event_pr_opened(connector):
 async def test_handle_event_logs_correlation_id(connector, caplog):
     """ExecutionContext.correlation_id should appear in log output."""
     from atlas.contracts.types import ExecutionContext
-    ctx = ExecutionContext(correlation_id="test-corr-123", mission_id="m1", task_id="t1")
+
+    ctx = ExecutionContext(
+        correlation_id="test-corr-123", mission_id="m1", task_id="t1"
+    )
     with caplog.at_level("INFO"):
         await connector.handle_event("push", {"ref": "main"}, ctx=ctx)
     assert "test-corr-123" in caplog.text
@@ -100,7 +121,10 @@ async def test_handle_event_logs_correlation_id(connector, caplog):
 
 async def test_authenticate_logs_correlation_id(connector, caplog):
     from atlas.contracts.types import ExecutionContext
-    ctx = ExecutionContext(correlation_id="auth-corr-456", mission_id="m1", task_id="t1")
+
+    ctx = ExecutionContext(
+        correlation_id="auth-corr-456", mission_id="m1", task_id="t1"
+    )
     with caplog.at_level("INFO"):
         await connector.authenticate(ctx=ctx)
     assert "auth-corr-456" in caplog.text

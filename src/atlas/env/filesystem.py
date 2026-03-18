@@ -29,12 +29,14 @@ class FilesystemProvider:
         entries = []
         items = p.rglob("*") if recursive else p.iterdir()
         for item in sorted(items):
-            entries.append({
-                "name": item.name,
-                "path": str(item),
-                "is_dir": item.is_dir(),
-                "size": item.stat().st_size if item.is_file() else 0,
-            })
+            entries.append(
+                {
+                    "name": item.name,
+                    "path": str(item),
+                    "is_dir": item.is_dir(),
+                    "size": item.stat().st_size if item.is_file() else 0,
+                }
+            )
         return entries
 
     def search(self, root: str, pattern: str) -> list[str]:

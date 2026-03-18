@@ -29,7 +29,9 @@ async def test_embed_returns_numpy_array(provider, mock_voyage_client):
     assert isinstance(result, np.ndarray)
     assert result.dtype == np.float32
     mock_voyage_client.embed.assert_called_once_with(
-        ["hello world"], model="voyage-3-lite", input_type="document",
+        ["hello world"],
+        model="voyage-3-lite",
+        input_type="document",
     )
 
 
@@ -50,12 +52,15 @@ async def test_embed_batch_returns_list_of_arrays(provider, mock_voyage_client):
 async def test_embed_query_uses_query_input_type(provider, mock_voyage_client):
     await provider.embed_query("search for something")
     mock_voyage_client.embed.assert_called_once_with(
-        ["search for something"], model="voyage-3-lite", input_type="query",
+        ["search for something"],
+        model="voyage-3-lite",
+        input_type="query",
     )
 
 
 def test_compose_episode_text(provider):
     from atlas.contracts.types import Episode
+
     episode = Episode(
         trigger="deploy the app",
         plan="run deploy script",
@@ -93,10 +98,14 @@ async def test_episodic_store_embeds_on_record(tmp_path):
 
     mock_provider = MagicMock()
     mock_provider.compose_episode_text.return_value = "test text"
-    mock_provider.embed = AsyncMock(return_value=np.array([0.1, 0.2, 0.3], dtype=np.float32))
+    mock_provider.embed = AsyncMock(
+        return_value=np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    )
 
     vector_store = VectorStore(db, model="voyage-3-lite")
-    store = EpisodicMemoryStore(db, embedding_provider=mock_provider, vector_store=vector_store)
+    store = EpisodicMemoryStore(
+        db, embedding_provider=mock_provider, vector_store=vector_store
+    )
 
     episode = Episode(trigger="test goal", outcome="done")
     await store.record(episode)

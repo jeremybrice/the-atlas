@@ -74,7 +74,9 @@ def test_procedure_creation():
 def test_daemon_command_and_response():
     cmd = DaemonCommand(command="goal", payload={"goal_text": "do thing"})
     assert cmd.command_id  # auto-generated
-    resp = DaemonResponse(command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"})
+    resp = DaemonResponse(
+        command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"}
+    )
     assert resp.status == "ok"
 
 

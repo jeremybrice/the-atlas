@@ -46,6 +46,8 @@ async def test_unlink(mapper):
 
 
 async def test_link_with_metadata(mapper):
-    await mapper.link("github", "PR-123", "mission", "m-1", metadata={"repo": "owner/repo"})
+    await mapper.link(
+        "github", "PR-123", "mission", "m-1", metadata={"repo": "owner/repo"}
+    )
     result = await mapper.get_atlas_id("github", "PR-123")
     assert result == ("mission", "m-1")

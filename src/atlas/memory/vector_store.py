@@ -35,7 +35,9 @@ class VectorStore:
         )
         await self._db.db.commit()
 
-    async def store_batch(self, episode_ids: list[str], embeddings: list[np.ndarray]) -> None:
+    async def store_batch(
+        self, episode_ids: list[str], embeddings: list[np.ndarray]
+    ) -> None:
         """Store embeddings for multiple episodes."""
         now = datetime.now(timezone.utc).isoformat()
         rows = [
@@ -61,7 +63,9 @@ class VectorStore:
             return None
         return np.frombuffer(row[0], dtype=np.float32).copy()
 
-    async def search(self, query_embedding: np.ndarray, limit: int = 50) -> list[tuple[str, float]]:
+    async def search(
+        self, query_embedding: np.ndarray, limit: int = 50
+    ) -> list[tuple[str, float]]:
         """Search for similar episodes by cosine similarity.
 
         Returns list of (episode_id, similarity_score) sorted by score descending.

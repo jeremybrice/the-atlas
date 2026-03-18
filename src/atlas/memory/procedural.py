@@ -1,4 +1,5 @@
 """Procedural Memory — stores and retrieves learned workflow procedures."""
+
 import json
 from datetime import datetime, timezone
 
@@ -30,8 +31,17 @@ class ProceduralMemoryStore:
     async def store(self, proc: Procedure) -> str:
         await self._db.db.execute(
             "INSERT INTO procedures (procedure_id, name, description, trigger_pattern, steps, success_rate, use_count, last_used, created_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (proc.procedure_id, proc.name, proc.description, proc.trigger_pattern,
-             json.dumps(proc.steps), proc.success_rate, proc.use_count, proc.last_used, proc.created_from),
+            (
+                proc.procedure_id,
+                proc.name,
+                proc.description,
+                proc.trigger_pattern,
+                json.dumps(proc.steps),
+                proc.success_rate,
+                proc.use_count,
+                proc.last_used,
+                proc.created_from,
+            ),
         )
         await self._db.db.commit()
         return proc.procedure_id
@@ -58,7 +68,9 @@ class ProceduralMemoryStore:
         if not proc:
             return
         new_count = proc.use_count + 1
-        total_successes = round(proc.success_rate * proc.use_count) + (1 if success else 0)
+        total_successes = round(proc.success_rate * proc.use_count) + (
+            1 if success else 0
+        )
         new_rate = total_successes / new_count
         now = datetime.now(timezone.utc).isoformat()
         await self._db.db.execute(
@@ -68,7 +80,9 @@ class ProceduralMemoryStore:
         await self._db.db.commit()
 
     async def list_all(self) -> list[Procedure]:
-        cursor = await self._db.db.execute("SELECT * FROM procedures ORDER BY use_count DESC")
+        cursor = await self._db.db.execute(
+            "SELECT * FROM procedures ORDER BY use_count DESC"
+        )
         rows = await cursor.fetchall()
         return [self._row_to_procedure(r) for r in rows]
 

@@ -1,4 +1,5 @@
 """Emergency Controller — pause, resume, and kill operations for the daemon."""
+
 import asyncio
 import logging
 

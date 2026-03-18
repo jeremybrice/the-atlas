@@ -4,7 +4,11 @@ from atlas.core.tasks import Task, TaskQueue
 
 
 def test_task_creation():
-    task = Task(description="read a file", skill_id="file.read", input_params={"path": "test.py"})
+    task = Task(
+        description="read a file",
+        skill_id="file.read",
+        input_params={"path": "test.py"},
+    )
     assert task.status == TaskStatus.PENDING
     assert task.skill_id == "file.read"
 

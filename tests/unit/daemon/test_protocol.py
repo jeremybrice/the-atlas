@@ -1,5 +1,10 @@
 import tempfile
-from atlas.daemon.protocol import encode_message, decode_message, DaemonSocketServer, DaemonSocketClient
+from atlas.daemon.protocol import (
+    encode_message,
+    decode_message,
+    DaemonSocketServer,
+    DaemonSocketClient,
+)
 from atlas.contracts.types import DaemonCommand, DaemonResponse
 
 
@@ -24,7 +29,11 @@ async def test_server_client_roundtrip(tmp_path):
     socket_path = f"{tmpdir}/t.sock"
 
     async def handler(data: dict) -> dict:
-        return {"command_id": data["command_id"], "status": "ok", "payload": {"echo": data["command"]}}
+        return {
+            "command_id": data["command_id"],
+            "status": "ok",
+            "payload": {"echo": data["command"]},
+        }
 
     server = DaemonSocketServer(socket_path, handler)
     await server.start()

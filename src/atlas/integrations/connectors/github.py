@@ -1,4 +1,5 @@
 """GitHub Connector — handles GitHub API interactions and webhook events."""
+
 import logging
 from typing import Any, Callable, NoReturn
 
@@ -42,13 +43,30 @@ class GitHubConnector(ConnectorABC):
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
-        logger.info("%sGitHub connector authenticated for %s/%s", self._log_ctx(ctx), self._owner, self._repo)
+        logger.info(
+            "%sGitHub connector authenticated for %s/%s",
+            self._log_ctx(ctx),
+            self._owner,
+            self._repo,
+        )
 
-    async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
-        logger.info("%sGitHub event: %s action=%s", self._log_ctx(ctx), event_type, payload.get("action", ""))
+    async def handle_event(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        ctx: ExecutionContext | None = None,
+    ) -> dict[str, Any]:
+        logger.info(
+            "%sGitHub event: %s action=%s",
+            self._log_ctx(ctx),
+            event_type,
+            payload.get("action", ""),
+        )
         return {"handled": True, "event_type": event_type}
 
-    async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
+    async def execute_action(
+        self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None
+    ) -> dict[str, Any]:
         await self._check_rate_limit()
 
         match action:
@@ -59,10 +77,13 @@ class GitHubConnector(ConnectorABC):
             case "list_pulls":
                 return await self._list_pulls(params)
             case _:
-                raise ConnectorError(f"Unsupported GitHub action: {action}", max_retries=0)
+                raise ConnectorError(
+                    f"Unsupported GitHub action: {action}", max_retries=0
+                )
 
     def get_event_parser(self) -> Callable[[str, dict], ObservationEvent]:
         """Return an EventBridge-compatible parser for GitHub webhooks."""
+
         def parser(event_type: str, payload: dict[str, Any]) -> ObservationEvent:
             return ObservationEvent(
                 event_type=EventType.WEBHOOK,
@@ -70,6 +91,7 @@ class GitHubConnector(ConnectorABC):
                 payload={**payload, "github_event": event_type},
                 priority=self._event_priority(event_type, payload),
             )
+
         return parser
 
     def _raise_for_status(self, exc: httpx.HTTPStatusError) -> NoReturn:
@@ -77,10 +99,16 @@ class GitHubConnector(ConnectorABC):
         if status in (401, 403):
             raise CredentialError(f"GitHub auth failed ({status}): {exc}", cause=exc)
         if status == 429:
-            raise ConnectorError(f"GitHub rate limit exceeded: {exc}", max_retries=5, cause=exc)
+            raise ConnectorError(
+                f"GitHub rate limit exceeded: {exc}", max_retries=5, cause=exc
+            )
         if status >= 500:
-            raise ConnectorError(f"GitHub server error ({status}): {exc}", max_retries=3, cause=exc)
-        raise ConnectorError(f"GitHub client error ({status}): {exc}", max_retries=1, cause=exc)
+            raise ConnectorError(
+                f"GitHub server error ({status}): {exc}", max_retries=3, cause=exc
+            )
+        raise ConnectorError(
+            f"GitHub client error ({status}): {exc}", max_retries=1, cause=exc
+        )
 
     async def _post_comment(self, params: dict) -> dict:
         issue_number = params.get("issue_number")
@@ -88,7 +116,9 @@ class GitHubConnector(ConnectorABC):
         url = f"{self._api_base}/repos/{self._owner}/{self._repo}/issues/{issue_number}/comments"
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.post(url, json={"body": body}, headers=self._headers)
+                resp = await client.post(
+                    url, json={"body": body}, headers=self._headers
+                )
                 resp.raise_for_status()
                 return {"status": "success", "data": resp.json()}
         except httpx.HTTPStatusError as e:
@@ -124,7 +154,10 @@ class GitHubConnector(ConnectorABC):
         """Assign priority based on event type. Lower number = higher priority."""
         match event_type:
             case "check_run" | "check_suite":
-                if payload.get("action") == "completed" and payload.get("conclusion") == "failure":
+                if (
+                    payload.get("action") == "completed"
+                    and payload.get("conclusion") == "failure"
+                ):
                     return 2  # CI failure = high priority
             case "pull_request":
                 return 4

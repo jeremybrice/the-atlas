@@ -78,23 +78,25 @@ async def test_full_goal_execution(e2e_env: dict):
     loop = e2e_env["loop"]
 
     # Simulate Claude's planning response
-    plan_json = json.dumps({
-        "tasks": [
-            {
-                "description": "Read the application source",
-                "skill": "file.read",
-                "params": {"path": str(workspace / "src" / "app.py")},
-            },
-            {
-                "description": "Write updated file with logging",
-                "skill": "file.write",
-                "params": {
-                    "path": str(workspace / "src" / "app.py"),
-                    "content": "import logging\n\ndef greet():\n    logging.info('hello world')\n",
+    plan_json = json.dumps(
+        {
+            "tasks": [
+                {
+                    "description": "Read the application source",
+                    "skill": "file.read",
+                    "params": {"path": str(workspace / "src" / "app.py")},
                 },
-            },
-        ]
-    })
+                {
+                    "description": "Write updated file with logging",
+                    "skill": "file.write",
+                    "params": {
+                        "path": str(workspace / "src" / "app.py"),
+                        "content": "import logging\n\ndef greet():\n    logging.info('hello world')\n",
+                    },
+                },
+            ]
+        }
+    )
 
     tasks = parse_task_plan(plan_json)
     mission = Mission(goal_text="Add logging to app.py", tasks=tasks)

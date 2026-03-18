@@ -1,4 +1,5 @@
 """Test that the webhook/dashboard app factory works with daemon components."""
+
 import pytest
 from atlas.integrations.webhook import WebhookServer
 from atlas.integrations.dashboard import DashboardServer
@@ -30,7 +31,9 @@ async def test_combined_app_has_all_routes(db):
         return {"status": "ok"}
 
     webhook = WebhookServer(event_bridge=bridge, event_callback=noop_event)
-    dashboard = DashboardServer(db=db, audit=audit, registry=registry, goal_handler=noop_goal)
+    dashboard = DashboardServer(
+        db=db, audit=audit, registry=registry, goal_handler=noop_goal
+    )
 
     # Create combined app — matching production code in cli.py _run_daemon()
     http_app = webhook.create_app()

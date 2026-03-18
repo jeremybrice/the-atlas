@@ -42,7 +42,9 @@ async def test_search_returns_sorted_by_similarity(vector_store: VectorStore):
     # Store three vectors
     await vector_store.store("ep-exact", np.array([1.0, 0.0, 0.0], dtype=np.float32))
     await vector_store.store("ep-similar", np.array([0.9, 0.1, 0.0], dtype=np.float32))
-    await vector_store.store("ep-different", np.array([0.0, 0.0, 1.0], dtype=np.float32))
+    await vector_store.store(
+        "ep-different", np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    )
 
     query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
     results = await vector_store.search(query, limit=3)

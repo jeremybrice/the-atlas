@@ -22,9 +22,7 @@ class PolicyEngine:
         skill_overrides: dict[str, AutonomyLevel] | None = None,
     ):
         self._autonomy_level = autonomy_level
-        self._blocked_paths = [
-            str(Path(p).expanduser()) for p in (blocked_paths or [])
-        ]
+        self._blocked_paths = [str(Path(p).expanduser()) for p in (blocked_paths or [])]
         self._skill_overrides = skill_overrides or {}
 
     def evaluate(self, action: ProposedAction) -> PolicyDecision:
@@ -76,7 +74,9 @@ class PolicyEngine:
         resolved = str(Path(path_str).expanduser())
         return any(resolved.startswith(bp) for bp in self._blocked_paths)
 
-    def get_autonomy_level(self, domain: str, skill: str | None = None) -> AutonomyLevel:
+    def get_autonomy_level(
+        self, domain: str, skill: str | None = None
+    ) -> AutonomyLevel:
         if skill and skill in self._skill_overrides:
             return self._skill_overrides[skill]
         return self._autonomy_level

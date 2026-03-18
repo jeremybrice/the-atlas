@@ -60,9 +60,14 @@ class EpisodicMemoryStore:
                 if embedding is not None:
                     await self._vector_store.store(episode.episode_id, embedding)
                 else:
-                    logger.warning("Failed to embed episode %s, will retry on migration", episode.episode_id)
+                    logger.warning(
+                        "Failed to embed episode %s, will retry on migration",
+                        episode.episode_id,
+                    )
             except Exception as e:
-                logger.warning("Embedding failed for episode %s: %s", episode.episode_id, e)
+                logger.warning(
+                    "Embedding failed for episode %s: %s", episode.episode_id, e
+                )
 
         return episode.episode_id
 
@@ -86,7 +91,9 @@ class EpisodicMemoryStore:
         rows = await cursor.fetchall()
         return [self._row_to_episode(cursor.description, row) for row in rows]
 
-    async def search_scored(self, text_query: str, limit: int = 20) -> list[tuple[str, float]]:
+    async def search_scored(
+        self, text_query: str, limit: int = 20
+    ) -> list[tuple[str, float]]:
         """Search episodes and return (episode_id, relevance_score) tuples.
 
         Scores are normalized FTS5 rank values in [0, 1] range.

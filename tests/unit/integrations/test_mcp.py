@@ -28,9 +28,9 @@ def test_mcp_skill_adapter_creates_handler():
 
 async def test_mcp_skill_adapter_handler_calls_session():
     mock_session = AsyncMock()
-    mock_session.call_tool = AsyncMock(return_value=MagicMock(
-        content=[MagicMock(text="result text")]
-    ))
+    mock_session.call_tool = AsyncMock(
+        return_value=MagicMock(content=[MagicMock(text="result text")])
+    )
 
     adapter = MCPSkillAdapter(
         session=mock_session,
@@ -39,7 +39,9 @@ async def test_mcp_skill_adapter_handler_calls_session():
         input_schema={},
     )
     result = await adapter.handler({"arg1": "value1"})
-    mock_session.call_tool.assert_called_once_with("test_tool", arguments={"arg1": "value1"})
+    mock_session.call_tool.assert_called_once_with(
+        "test_tool", arguments={"arg1": "value1"}
+    )
     assert result["output"] == "result text"
     assert result["status"] == "success"
 
@@ -61,6 +63,7 @@ async def test_mcp_skill_adapter_handler_error():
 async def test_mcp_skill_adapter_handler_preserves_atlas_errors():
     """AtlasError subclasses should propagate without being wrapped in ConnectorError."""
     from atlas.contracts.errors import SkillValidationError
+
     mock_session = AsyncMock()
     mock_session.call_tool = AsyncMock(
         side_effect=SkillValidationError("bad input schema")

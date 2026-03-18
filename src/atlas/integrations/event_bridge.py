@@ -1,4 +1,5 @@
 """Event Bridge — normalizes external webhook payloads into ObservationEvents."""
+
 import hashlib
 import hmac
 import logging
@@ -26,7 +27,9 @@ class EventBridge:
         self._parsers[service] = parser
         logger.info("Registered event parser for %s", service)
 
-    def parse(self, service: str, event_type: str, payload: dict) -> ObservationEvent | None:
+    def parse(
+        self, service: str, event_type: str, payload: dict
+    ) -> ObservationEvent | None:
         parser = self._parsers.get(service)
         if parser is None:
             logger.warning("No parser registered for service: %s", service)

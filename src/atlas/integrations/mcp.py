@@ -1,4 +1,5 @@
 """MCP Bridge — connects to MCP servers and registers tools as ATLAS skills."""
+
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPSkillAdapter:
     """Wraps an MCP tool as an ATLAS skill handler."""
+
     session: Any  # MCP ClientSession
     tool_name: str
     tool_description: str
@@ -80,7 +82,9 @@ class MCPBridge:
             )
             self._server_skills[server_name].append(adapter.skill_id)
             registered.append(adapter.skill_id)
-            logger.info("Registered MCP tool: %s from %s", adapter.skill_id, server_name)
+            logger.info(
+                "Registered MCP tool: %s from %s", adapter.skill_id, server_name
+            )
 
         return registered
 

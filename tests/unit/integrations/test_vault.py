@@ -111,6 +111,7 @@ async def test_list_keys_accepts_execution_context(db):
 async def test_store_logs_correlation_id(db, caplog):
     """When ctx is provided, correlation_id should appear in log output."""
     import logging
+
     vault = await CredentialVault.create(db=db, passphrase="test-pass")
     ctx = ExecutionContext.new(mission_id="test-mission")
     with caplog.at_level(logging.INFO, logger="atlas.integrations.vault"):
@@ -133,8 +134,12 @@ async def test_different_vaults_use_different_salts(tmp_path):
         await v1.store("svc", "key", "secret")
         await v2.store("svc", "key", "secret")
 
-        c1 = await db1.db.execute("SELECT encrypted_value FROM credentials WHERE service='svc'")
-        c2 = await db2.db.execute("SELECT encrypted_value FROM credentials WHERE service='svc'")
+        c1 = await db1.db.execute(
+            "SELECT encrypted_value FROM credentials WHERE service='svc'"
+        )
+        c2 = await db2.db.execute(
+            "SELECT encrypted_value FROM credentials WHERE service='svc'"
+        )
         row1 = await c1.fetchone()
         row2 = await c2.fetchone()
         assert row1[0] != row2[0]

@@ -1,4 +1,5 @@
 """Event Router -- matches observation events to reactive rules."""
+
 import fnmatch
 import time
 from dataclasses import dataclass
@@ -30,7 +31,10 @@ class EventRouter:
             if rule.event_type != event.event_type:
                 continue
             path = event.payload.get("path", "")
-            if not fnmatch.fnmatch(path, rule.source_pattern) and rule.source_pattern != "*":
+            if (
+                not fnmatch.fnmatch(path, rule.source_pattern)
+                and rule.source_pattern != "*"
+            ):
                 # Also check just the filename
                 if not fnmatch.fnmatch(path.rsplit("/", 1)[-1], rule.source_pattern):
                     continue

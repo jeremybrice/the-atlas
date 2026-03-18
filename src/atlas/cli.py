@@ -20,7 +20,10 @@ from atlas.control.policy import PolicyEngine
 from atlas.control.trust import TrustTracker
 from atlas.core.loop import ExecutionLoop
 from atlas.core.missions import (
-    Mission, parse_task_plan, PLANNING_PROMPT_TEMPLATE, PLANNING_SYSTEM_PROMPT,
+    Mission,
+    parse_task_plan,
+    PLANNING_PROMPT_TEMPLATE,
+    PLANNING_SYSTEM_PROMPT,
 )
 from atlas.daemon.loop import DaemonLoop
 from atlas.daemon.manager import PidFile
@@ -92,9 +95,15 @@ def main():
 
 @main.command()
 @click.argument("goal_text")
-@click.option("--autonomy", type=click.Choice(["observe", "suggest", "act"]), default="act",
-              help="Autonomy level")
-@click.option("--auto-approve", is_flag=True, help="Auto-approve all actions (for testing)")
+@click.option(
+    "--autonomy",
+    type=click.Choice(["observe", "suggest", "act"]),
+    default="act",
+    help="Autonomy level",
+)
+@click.option(
+    "--auto-approve", is_flag=True, help="Auto-approve all actions (for testing)"
+)
 def goal(goal_text: str, autonomy: str, auto_approve: bool):
     """Submit a goal for ATLAS to accomplish."""
     config = _load_config()
@@ -118,7 +127,9 @@ def goal(goal_text: str, autonomy: str, auto_approve: bool):
 
 async def _forward_goal(socket_path: str, goal_text: str) -> dict:
     client = DaemonSocketClient(socket_path)
-    return await client.send(DaemonCommand(command="goal", payload={"goal_text": goal_text}))
+    return await client.send(
+        DaemonCommand(command="goal", payload={"goal_text": goal_text})
+    )
 
 
 async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
@@ -188,17 +199,22 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
                 raise ValueError("VOYAGE_API_KEY environment variable not set")
 
             vs_embedding_provider = EmbeddingProvider(
-                api_key=api_key, model=config.memory.vector_search.model,
+                api_key=api_key,
+                model=config.memory.vector_search.model,
             )
             vs_vector_store = VectorStore(db, model=config.memory.vector_search.model)
 
             # Update episodic store with embedding components
             episodic = EpisodicMemoryStore(
-                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
+                db,
+                embedding_provider=vs_embedding_provider,
+                vector_store=vs_vector_store,
             )
 
             # Run migration if needed
-            migration = VectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
+            migration = VectorMigration(
+                db, episodic, vs_vector_store, vs_embedding_provider
+            )
             if not await migration.is_complete():
                 click.echo("[vector-search] Migrating existing episodes...")
                 count = await migration.run()
@@ -258,8 +274,14 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
             f"python={state['system']['python']}",
         ]
         # Include key config file contents for accurate planning
-        for config_file in ["pyproject.toml", "setup.py", "setup.cfg",
-                            "requirements.txt", "package.json", "Makefile"]:
+        for config_file in [
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "package.json",
+            "Makefile",
+        ]:
             try:
                 content = fs.read(config_file)
                 context_parts.append(f"{config_file}:\n{content}")
@@ -271,15 +293,21 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         )
 
         try:
-            response = await env.claude_oneshot(prompt, system_prompt=PLANNING_SYSTEM_PROMPT)
+            response = await env.claude_oneshot(
+                prompt, system_prompt=PLANNING_SYSTEM_PROMPT
+            )
             tasks = parse_task_plan(response.content)
         except Exception as e:
             click.echo(f"[error] Planning failed: {e}", err=True)
             sys.exit(1)
 
         if not tasks:
-            click.echo("[error] Could not parse a task plan from Claude's response.", err=True)
-            click.echo(f"[debug] Raw response ({len(response.content)} chars):", err=True)
+            click.echo(
+                "[error] Could not parse a task plan from Claude's response.", err=True
+            )
+            click.echo(
+                f"[debug] Raw response ({len(response.content)} chars):", err=True
+            )
             click.echo(repr(response.content[:500]), err=True)
             sys.exit(1)
 
@@ -293,15 +321,20 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         completed = sum(1 for t in result.tasks if t.status.value == "completed")
         total = len(result.tasks)
         if result.status.value == "completed":
-            click.echo(f"[complete] {completed}/{total} tasks succeeded. Episode recorded.")
+            click.echo(
+                f"[complete] {completed}/{total} tasks succeeded. Episode recorded."
+            )
         else:
-            click.echo(f"[failed] {completed}/{total} tasks succeeded. Mission failed.", err=True)
+            click.echo(
+                f"[failed] {completed}/{total} tasks succeeded. Mission failed.",
+                err=True,
+            )
             for t in result.tasks:
                 if t.error:
                     click.echo(f"  - {t.description}: {t.error}", err=True)
 
         # Trust recommendations
-        if hasattr(result, 'trust_recommendations') and result.trust_recommendations:
+        if hasattr(result, "trust_recommendations") and result.trust_recommendations:
             click.echo("\nTrust recommendations based on this mission:")
             for idx, rec in enumerate(result.trust_recommendations, 1):
                 evidence = rec.evidence
@@ -309,24 +342,38 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
                     detail = f"{evidence.get('consecutive_successes', '?')} consecutive successes"
                 else:
                     detail = f"{evidence.get('failures', '?')} failures"
-                click.echo(f"  {idx}. {rec.skill_id} — {rec.direction} to {rec.recommended_level} ({detail})")
+                click.echo(
+                    f"  {idx}. {rec.skill_id} — {rec.direction} to {rec.recommended_level} ({detail})"
+                )
 
             try:
-                response = input("Accept recommendations? (y/n/select): ").strip().lower()
+                response = (
+                    input("Accept recommendations? (y/n/select): ").strip().lower()
+                )
             except (EOFError, KeyboardInterrupt):
                 response = "n"
 
             if response in ("y", "yes"):
                 for rec in result.trust_recommendations:
-                    await trust_tracker.resolve_recommendation(rec.recommendation_id, accepted=True)
+                    await trust_tracker.resolve_recommendation(
+                        rec.recommendation_id, accepted=True
+                    )
                 click.echo("[trust] All recommendations accepted.")
             elif response == "select":
                 for rec in result.trust_recommendations:
                     try:
-                        choice = input(f"  {rec.skill_id} → {rec.recommended_level}? (y/n): ").strip().lower()
+                        choice = (
+                            input(
+                                f"  {rec.skill_id} → {rec.recommended_level}? (y/n): "
+                            )
+                            .strip()
+                            .lower()
+                        )
                     except (EOFError, KeyboardInterrupt):
                         choice = "n"
-                    await trust_tracker.resolve_recommendation(rec.recommendation_id, accepted=(choice in ("y", "yes")))
+                    await trust_tracker.resolve_recommendation(
+                        rec.recommendation_id, accepted=(choice in ("y", "yes"))
+                    )
                 click.echo("[trust] Recommendations resolved.")
             else:
                 click.echo("[trust] Recommendations saved for later review.")
@@ -335,6 +382,7 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
 
 # --- Daemon commands ---
+
 
 @main.group()
 def daemon():
@@ -403,7 +451,9 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         demotion_failure_count=config.trust.demotion_failure_count,
         demotion_window_size=config.trust.demotion_window_size,
     )
-    approval = ApprovalWorkflow(auto_approve=True, rule_store=rule_store)  # daemon mode auto-approves
+    approval = ApprovalWorkflow(
+        auto_approve=True, rule_store=rule_store
+    )  # daemon mode auto-approves
     working = WorkingMemoryStore()
     episodic = EpisodicMemoryStore(db)
 
@@ -414,7 +464,9 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     if config.memory.vector_search.enabled:
         try:
-            from atlas.memory.embeddings import EmbeddingProvider as DaemonEmbeddingProvider
+            from atlas.memory.embeddings import (
+                EmbeddingProvider as DaemonEmbeddingProvider,
+            )
             from atlas.memory.migration import VectorMigration as DaemonVectorMigration
             from atlas.memory.vector_store import VectorStore as DaemonVectorStore
 
@@ -423,15 +475,22 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
                 raise ValueError("VOYAGE_API_KEY environment variable not set")
 
             vs_embedding_provider = DaemonEmbeddingProvider(
-                api_key=api_key, model=config.memory.vector_search.model,
+                api_key=api_key,
+                model=config.memory.vector_search.model,
             )
-            vs_vector_store = DaemonVectorStore(db, model=config.memory.vector_search.model)
+            vs_vector_store = DaemonVectorStore(
+                db, model=config.memory.vector_search.model
+            )
 
             episodic = EpisodicMemoryStore(
-                db, embedding_provider=vs_embedding_provider, vector_store=vs_vector_store,
+                db,
+                embedding_provider=vs_embedding_provider,
+                vector_store=vs_vector_store,
             )
 
-            migration = DaemonVectorMigration(db, episodic, vs_vector_store, vs_embedding_provider)
+            migration = DaemonVectorMigration(
+                db, episodic, vs_vector_store, vs_embedding_provider
+            )
             if not await migration.is_complete():
                 click.echo("[vector-search] Migrating existing episodes...")
                 await migration.run()
@@ -479,14 +538,16 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     async def goal_executor(goal_text: str) -> dict:
         tasks = parse_task_plan(
-            (await env.claude_oneshot(
-                PLANNING_PROMPT_TEMPLATE.format(
-                    goal=goal_text,
-                    skills=", ".join(s.skill_id for s in registry.list_all()),
-                    context="daemon mode",
-                ),
-                system_prompt=PLANNING_SYSTEM_PROMPT,
-            )).content
+            (
+                await env.claude_oneshot(
+                    PLANNING_PROMPT_TEMPLATE.format(
+                        goal=goal_text,
+                        skills=", ".join(s.skill_id for s in registry.list_all()),
+                        context="daemon mode",
+                    ),
+                    system_prompt=PLANNING_SYSTEM_PROMPT,
+                )
+            ).content
         )
         if not tasks:
             return {"status": "error", "error": "Could not parse plan"}
@@ -498,19 +559,28 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
     router = EventRouter()
     if config.reactive.enabled:
         from atlas.contracts.types import EventType
+
         for rule_cfg in config.reactive.rules:
-            router.add_rule(ReactiveRule(
-                name=rule_cfg.get("name", "unnamed"),
-                event_type=EventType(rule_cfg.get("trigger", {}).get("type", "filesystem")),
-                source_pattern=rule_cfg.get("trigger", {}).get("pattern", "*"),
-                goal_template=rule_cfg.get("goal", ""),
-                cooldown_seconds=rule_cfg.get("cooldown", config.reactive.cooldown_default_seconds),
-            ))
+            router.add_rule(
+                ReactiveRule(
+                    name=rule_cfg.get("name", "unnamed"),
+                    event_type=EventType(
+                        rule_cfg.get("trigger", {}).get("type", "filesystem")
+                    ),
+                    source_pattern=rule_cfg.get("trigger", {}).get("pattern", "*"),
+                    goal_template=rule_cfg.get("goal", ""),
+                    cooldown_seconds=rule_cfg.get(
+                        "cooldown", config.reactive.cooldown_default_seconds
+                    ),
+                )
+            )
 
     obs_engine = ObservationEngine(router=router, goal_handler=goal_executor)
     for watch_path in config.observation.watches:
         obs_engine.add_filesystem_watch(
-            watch_path, ["*"], debounce_seconds=config.observation.filesystem_debounce_seconds,
+            watch_path,
+            ["*"],
+            debounce_seconds=config.observation.filesystem_debounce_seconds,
         )
 
     await obs_engine.start()
@@ -527,6 +597,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         # Register GitHub event parser if configured
         if config.github.token:
             from atlas.integrations.connectors.github import GitHubConnector
+
             github_connector = GitHubConnector(
                 token=config.github.token,
                 owner=config.github.owner,
@@ -557,7 +628,9 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
             dashboard_app = dashboard_server.create_app()
             for resource in dashboard_app.router.resources():
                 for route in resource:
-                    http_app.router.add_route(route.method, resource.canonical, route.handler)
+                    http_app.router.add_route(
+                        route.method, resource.canonical, route.handler
+                    )
 
     daemon_loop = DaemonLoop(
         socket_path=socket_path,
@@ -610,7 +683,9 @@ def daemon_status():
     result = asyncio.run(_send_daemon_command(socket_path, "status"))
     if result.get("status") == "ok":
         payload = result.get("payload", {})
-        click.echo(f"[daemon] Running. PID={payload.get('pid')} uptime={payload.get('uptime_seconds')}s")
+        click.echo(
+            f"[daemon] Running. PID={payload.get('pid')} uptime={payload.get('uptime_seconds')}s"
+        )
     else:
         click.echo(f"[daemon] Error: {result.get('error', 'unknown')}", err=True)
 
@@ -620,7 +695,9 @@ async def _send_daemon_command(socket_path: str, command: str) -> dict:
     return await client.send(DaemonCommand(command=command))
 
 
-async def _send_daemon_command_with_payload(socket_path: str, command: str, payload: dict) -> dict:
+async def _send_daemon_command_with_payload(
+    socket_path: str, command: str, payload: dict
+) -> dict:
     client = DaemonSocketClient(socket_path)
     return await client.send(DaemonCommand(command=command, payload=payload))
 
@@ -667,7 +744,9 @@ def daemon_kill(task_id: str):
         click.echo("[daemon] Not running.")
         return
     socket_path = str(Path(config.daemon.socket_path).expanduser())
-    result = asyncio.run(_send_daemon_command_with_payload(socket_path, "kill", {"task_id": task_id}))
+    result = asyncio.run(
+        _send_daemon_command_with_payload(socket_path, "kill", {"task_id": task_id})
+    )
     if result.get("status") == "ok":
         killed = result.get("payload", {}).get("killed", False)
         if killed:
@@ -679,6 +758,7 @@ def daemon_kill(task_id: str):
 
 
 # --- Watch commands ---
+
 
 @main.group()
 def watch():
@@ -713,10 +793,13 @@ def status():
     if pid_file.is_running():
         click.echo(f"[status] Daemon running (PID {pid_file.read()})")
     else:
-        click.echo("[status] ATLAS is not running as a daemon. Use 'atlas goal' to execute tasks.")
+        click.echo(
+            "[status] ATLAS is not running as a daemon. Use 'atlas goal' to execute tasks."
+        )
 
 
 # --- Vault commands ---
+
 
 @main.group()
 def vault():
@@ -727,7 +810,9 @@ def vault():
 @vault.command("set")
 @click.argument("service")
 @click.argument("key")
-@click.option("--value", prompt=True, hide_input=True, help="Credential value (prompted securely)")
+@click.option(
+    "--value", prompt=True, hide_input=True, help="Credential value (prompted securely)"
+)
 @click.option("--passphrase", prompt=True, hide_input=True, help="Vault passphrase")
 def vault_set(service: str, key: str, value: str, passphrase: str):
     """Store a credential in the vault."""
@@ -736,6 +821,7 @@ def vault_set(service: str, key: str, value: str, passphrase: str):
 
 async def _vault_set(service: str, key: str, value: str, passphrase: str):
     from atlas.integrations.vault import CredentialVault
+
     data_dir = _ensure_data_dir()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
@@ -808,6 +894,7 @@ async def _vault_delete(service: str, key: str):
 
 # --- Rules commands ---
 
+
 @main.group()
 def rules():
     """Manage standing approval rules."""
@@ -822,6 +909,7 @@ def rules_list():
 
 async def _rules_list():
     from atlas.control.approval_rules import ApprovalRuleStore
+
     data_dir = _ensure_data_dir()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
@@ -833,7 +921,9 @@ async def _rules_list():
             return
         for r in all_rules:
             expires = f" (expires {r.expires_at})" if r.expires_at else ""
-            click.echo(f"  {r.rule_id[:8]}  {r.match_skill}  risk<={r.match_risk}  → {r.decision}{expires}")
+            click.echo(
+                f"  {r.rule_id[:8]}  {r.match_skill}  risk<={r.match_risk}  → {r.decision}{expires}"
+            )
             if r.description:
                 click.echo(f"           {r.description}")
     finally:
@@ -842,8 +932,12 @@ async def _rules_list():
 
 @rules.command("add")
 @click.option("--skill", default="*", help="Skill pattern (glob), e.g. 'file.*'")
-@click.option("--risk", default="*", type=click.Choice(["low", "medium", "high", "*"]),
-              help="Maximum risk level to match")
+@click.option(
+    "--risk",
+    default="*",
+    type=click.Choice(["low", "medium", "high", "*"]),
+    help="Maximum risk level to match",
+)
 @click.option("--decision", required=True, type=click.Choice(["allow", "deny"]))
 @click.option("--description", default="", help="Human-readable description")
 def rules_add(skill: str, risk: str, decision: str, description: str):
@@ -854,14 +948,22 @@ def rules_add(skill: str, risk: str, decision: str, description: str):
 async def _rules_add(skill: str, risk: str, decision: str, description: str):
     from atlas.contracts.types import ApprovalRule
     from atlas.control.approval_rules import ApprovalRuleStore
+
     data_dir = _ensure_data_dir()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
     try:
         store = ApprovalRuleStore(db)
-        rule = ApprovalRule(match_skill=skill, match_risk=risk, decision=decision, description=description)
+        rule = ApprovalRule(
+            match_skill=skill,
+            match_risk=risk,
+            decision=decision,
+            description=description,
+        )
         rule_id = await store.add_rule(rule)
-        click.echo(f"[rules] Created rule {rule_id[:8]}: {skill} risk<={risk} → {decision}")
+        click.echo(
+            f"[rules] Created rule {rule_id[:8]}: {skill} risk<={risk} → {decision}"
+        )
     finally:
         await db.close()
 
@@ -875,6 +977,7 @@ def rules_remove(rule_id: str):
 
 async def _rules_remove(rule_id_prefix: str):
     from atlas.control.approval_rules import ApprovalRuleStore
+
     data_dir = _ensure_data_dir()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
     await db.initialize()
@@ -895,6 +998,7 @@ async def _rules_remove(rule_id_prefix: str):
 
 # --- Trust commands ---
 
+
 @main.group()
 def trust():
     """Manage skill trust and autonomy recommendations."""
@@ -909,6 +1013,7 @@ def trust_recommendations():
 
 async def _trust_recommendations():
     from atlas.control.trust import TrustTracker
+
     data_dir = _ensure_data_dir()
     config = _load_config()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
@@ -925,7 +1030,9 @@ async def _trust_recommendations():
             click.echo("[trust] No pending recommendations.")
             return
         for r in recs:
-            click.echo(f"  {r.recommendation_id[:8]}  {r.skill_id}  {r.direction} → {r.recommended_level}")
+            click.echo(
+                f"  {r.recommendation_id[:8]}  {r.skill_id}  {r.direction} → {r.recommended_level}"
+            )
             click.echo(f"           evidence: {r.evidence}")
     finally:
         await db.close()
@@ -947,6 +1054,7 @@ def trust_dismiss(recommendation_id: str):
 
 async def _trust_resolve(rec_id_prefix: str, accepted: bool):
     from atlas.control.trust import TrustTracker
+
     data_dir = _ensure_data_dir()
     config = _load_config()
     db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
@@ -966,7 +1074,9 @@ async def _trust_resolve(rec_id_prefix: str, accepted: bool):
         for r in matches:
             await tracker.resolve_recommendation(r.recommendation_id, accepted=accepted)
             action = "Accepted" if accepted else "Dismissed"
-            click.echo(f"[trust] {action}: {r.skill_id} {r.direction} → {r.recommended_level}")
+            click.echo(
+                f"[trust] {action}: {r.skill_id} {r.direction} → {r.recommended_level}"
+            )
     finally:
         await db.close()
 
@@ -992,9 +1102,15 @@ async def _trust_status():
             click.echo("[trust] No trust records.")
             return
         for r in rows:
-            override = f" (override: {AutonomyLevel(int(r[4])).name})" if r[4] is not None else ""
+            override = (
+                f" (override: {AutonomyLevel(int(r[4])).name})"
+                if r[4] is not None
+                else ""
+            )
             rate = round(r[1] / r[3] * 100, 1) if r[3] > 0 else 0
-            click.echo(f"  {r[0]}  {r[1]}ok {r[2]}fail ({rate}% success, {r[3]} total){override}")
+            click.echo(
+                f"  {r[0]}  {r[1]}ok {r[2]}fail ({rate}% success, {r[3]} total){override}"
+            )
     finally:
         await db.close()
 

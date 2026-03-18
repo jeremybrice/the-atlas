@@ -13,6 +13,7 @@ from atlas.core.tasks import Task
 @dataclass
 class Mission:
     """A user-assigned goal with its task list and state."""
+
     mission_id: str = field(default_factory=new_id)
     goal_text: str = ""
     status: MissionStatus = MissionStatus.PLANNING
@@ -66,12 +67,14 @@ def _parse_json_tasks(json_str: str) -> list[Task]:
     data = json.loads(json_str)
     tasks = []
     for item in data.get("tasks", []):
-        tasks.append(Task(
-            description=item.get("description", ""),
-            skill_id=item.get("skill"),
-            input_params=item.get("params", {}),
-            expected_outcome=item.get("expected_outcome", ""),
-        ))
+        tasks.append(
+            Task(
+                description=item.get("description", ""),
+                skill_id=item.get("skill"),
+                input_params=item.get("params", {}),
+                expected_outcome=item.get("expected_outcome", ""),
+            )
+        )
     return tasks
 
 
@@ -91,10 +94,10 @@ PLANNING_SYSTEM_PROMPT = (
 )
 
 PLANNING_PROMPT_TEMPLATE = (
-    'Decompose this goal into tasks. Goal: {goal}. '
-    'Available skills: {skills}. '
-    'Project context: {context}. '
-    'Use the project context to produce accurate file paths, commands, and content. '
-    'Respond with ONLY this JSON format: '
+    "Decompose this goal into tasks. Goal: {goal}. "
+    "Available skills: {skills}. "
+    "Project context: {context}. "
+    "Use the project context to produce accurate file paths, commands, and content. "
+    "Respond with ONLY this JSON format: "
     '{{"tasks":[{{"description":"step description","skill":"skill.id","params":{{}}}}]}}'
 )

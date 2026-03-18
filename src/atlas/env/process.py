@@ -25,9 +25,7 @@ class ProcessProvider:
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
             elapsed = int((time.monotonic() - start) * 1000)
 
             return {

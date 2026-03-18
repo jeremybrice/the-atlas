@@ -1,8 +1,13 @@
 """Integration test: control plane completion — emergency, rules, trust recommendations."""
+
 import pytest
 from atlas.contracts.types import (
-    ApprovalRule, ApprovalRequest, ApprovalResult,
-    AutonomyLevel, ProposedAction, RiskLevel,
+    ApprovalRule,
+    ApprovalRequest,
+    ApprovalResult,
+    AutonomyLevel,
+    ProposedAction,
+    RiskLevel,
 )
 from atlas.control.approval import ApprovalWorkflow
 from atlas.control.approval_rules import ApprovalRuleStore
@@ -22,9 +27,13 @@ async def db(tmp_path):
 async def test_standing_rule_integrates_with_approval_workflow(db):
     """Standing rule auto-approves without terminal prompt."""
     rule_store = ApprovalRuleStore(db)
-    await rule_store.add_rule(ApprovalRule(
-        match_skill="file.*", match_risk="low", decision="allow",
-    ))
+    await rule_store.add_rule(
+        ApprovalRule(
+            match_skill="file.*",
+            match_risk="low",
+            decision="allow",
+        )
+    )
 
     workflow = ApprovalWorkflow(interactive=False, rule_store=rule_store)
     request = ApprovalRequest(
@@ -43,9 +52,12 @@ async def test_standing_rule_integrates_with_approval_workflow(db):
 async def test_standing_rule_deny_blocks_even_in_non_interactive(db):
     """A deny rule takes precedence even without interactive mode."""
     rule_store = ApprovalRuleStore(db)
-    await rule_store.add_rule(ApprovalRule(
-        match_skill="shell.*", decision="deny",
-    ))
+    await rule_store.add_rule(
+        ApprovalRule(
+            match_skill="shell.*",
+            decision="deny",
+        )
+    )
 
     workflow = ApprovalWorkflow(interactive=False, rule_store=rule_store)
     request = ApprovalRequest(
@@ -64,8 +76,10 @@ async def test_standing_rule_deny_blocks_even_in_non_interactive(db):
 async def test_trust_recommendation_full_lifecycle(db):
     """Create, list, and resolve a trust recommendation."""
     tracker = TrustTracker(
-        db=db, escalation_threshold=3,
-        demotion_failure_count=2, demotion_window_size=5,
+        db=db,
+        escalation_threshold=3,
+        demotion_failure_count=2,
+        demotion_window_size=5,
     )
 
     # Build up trust

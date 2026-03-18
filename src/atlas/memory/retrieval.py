@@ -59,7 +59,9 @@ class ContextAssembler:
     ) -> ContextBundle:
         """Assemble context from episodes ranked by pre-computed scores."""
         ranked_ids = sorted(scores, key=scores.get, reverse=True)
-        ranked_episodes = [episodes_by_id[eid] for eid in ranked_ids if eid in episodes_by_id]
+        ranked_episodes = [
+            episodes_by_id[eid] for eid in ranked_ids if eid in episodes_by_id
+        ]
         return self._assemble_episodes(query, ranked_episodes, procedures)
 
     def _assemble_episodes(
@@ -79,12 +81,14 @@ class ContextAssembler:
                 tokens = self.estimate_tokens(text)
                 if total_tokens + tokens > query.token_budget:
                     break
-                contents.append({
-                    "source": f"procedure:{proc.name}",
-                    "text": text,
-                    "tokens": tokens,
-                    "truncated": False,
-                })
+                contents.append(
+                    {
+                        "source": f"procedure:{proc.name}",
+                        "text": text,
+                        "tokens": tokens,
+                        "truncated": False,
+                    }
+                )
                 total_tokens += tokens
 
         for episode in episodes:
@@ -95,21 +99,25 @@ class ContextAssembler:
                 remaining = query.token_budget - total_tokens
                 if remaining > 20:
                     truncated = text[: remaining * self.CHARS_PER_TOKEN]
-                    contents.append({
-                        "source": episode.trigger,
-                        "text": truncated,
-                        "tokens": remaining,
-                        "truncated": True,
-                    })
+                    contents.append(
+                        {
+                            "source": episode.trigger,
+                            "text": truncated,
+                            "tokens": remaining,
+                            "truncated": True,
+                        }
+                    )
                     total_tokens += remaining
                 break
 
-            contents.append({
-                "source": episode.trigger,
-                "text": text,
-                "tokens": tokens,
-                "truncated": False,
-            })
+            contents.append(
+                {
+                    "source": episode.trigger,
+                    "text": text,
+                    "tokens": tokens,
+                    "truncated": False,
+                }
+            )
             total_tokens += tokens
 
         return ContextBundle(

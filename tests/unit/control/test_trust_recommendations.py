@@ -14,7 +14,9 @@ async def db(tmp_path):
 
 @pytest.fixture
 def tracker(db):
-    return TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+    return TrustTracker(
+        db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5
+    )
 
 
 async def test_create_escalation_recommendation(tracker):
@@ -33,10 +35,14 @@ async def test_create_escalation_recommendation(tracker):
 
 async def test_create_demotion_recommendation(tracker, db):
     # Set an override first
-    await tracker.set_autonomy_override("shell.execute", AutonomyLevel.ACT_WITHIN_BOUNDS)
+    await tracker.set_autonomy_override(
+        "shell.execute", AutonomyLevel.ACT_WITHIN_BOUNDS
+    )
     await tracker.record_outcome("shell.execute", success=False)
 
-    rec = await tracker.create_recommendation("shell.execute", "demote", mission_id="m1")
+    rec = await tracker.create_recommendation(
+        "shell.execute", "demote", mission_id="m1"
+    )
     assert rec.direction == "demote"
     assert rec.recommended_level == "SUGGEST"  # from ACT_WITHIN_BOUNDS → SUGGEST
 

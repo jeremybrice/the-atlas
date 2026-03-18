@@ -12,7 +12,9 @@ from atlas.contracts.types import AuditEntry
 class AuditLogger:
     """Append-only SQLite audit log."""
 
-    def __init__(self, db_path: str | None = None, db: aiosqlite.Connection | None = None):
+    def __init__(
+        self, db_path: str | None = None, db: aiosqlite.Connection | None = None
+    ):
         self._db_path = db_path
         self._db: aiosqlite.Connection | None = db
         self._owns_connection = db is None

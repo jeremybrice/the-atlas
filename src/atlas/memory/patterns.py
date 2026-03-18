@@ -1,4 +1,5 @@
 """Pattern Extraction — discovers repeated patterns in episodic memory."""
+
 from collections import Counter
 from atlas.contracts.types import Episode
 
@@ -14,7 +15,8 @@ class PatternExtractor:
             if ep.outcome != "completed" or not ep.actions:
                 continue
             seq = tuple(
-                a.get("skill_id", "") for a in ep.actions
+                a.get("skill_id", "")
+                for a in ep.actions
                 if a.get("status") == "completed" and a.get("skill_id")
             )
             if seq:
@@ -24,10 +26,12 @@ class PatternExtractor:
         patterns = []
         for seq, count in counts.most_common():
             if count >= self._min_occurrences:
-                patterns.append({
-                    "skill_sequence": list(seq),
-                    "occurrences": count,
-                })
+                patterns.append(
+                    {
+                        "skill_sequence": list(seq),
+                        "occurrences": count,
+                    }
+                )
         return patterns
 
     def find_recurring_failures(self, episodes: list[Episode]) -> list[dict]:

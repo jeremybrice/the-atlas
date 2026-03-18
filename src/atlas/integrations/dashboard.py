@@ -1,4 +1,5 @@
 """Dashboard API — HTTP REST endpoints for monitoring and control."""
+
 import logging
 import time
 from typing import Any, Callable, Coroutine
@@ -58,11 +59,19 @@ class DashboardServer:
         # Slice 2: Approval rules
         app.router.add_get("/api/approvals/rules", self._handle_list_rules)
         app.router.add_post("/api/approvals/rules", self._handle_add_rule)
-        app.router.add_delete("/api/approvals/rules/{rule_id}", self._handle_remove_rule)
+        app.router.add_delete(
+            "/api/approvals/rules/{rule_id}", self._handle_remove_rule
+        )
         # Slice 3: Trust
-        app.router.add_get("/api/trust/recommendations", self._handle_trust_recommendations)
-        app.router.add_post("/api/trust/recommendations/{id}/accept", self._handle_trust_accept)
-        app.router.add_post("/api/trust/recommendations/{id}/dismiss", self._handle_trust_dismiss)
+        app.router.add_get(
+            "/api/trust/recommendations", self._handle_trust_recommendations
+        )
+        app.router.add_post(
+            "/api/trust/recommendations/{id}/accept", self._handle_trust_accept
+        )
+        app.router.add_post(
+            "/api/trust/recommendations/{id}/dismiss", self._handle_trust_dismiss
+        )
         app.router.add_get("/api/trust/records", self._handle_trust_records)
         # Slice 4: Remaining
         app.router.add_get("/api/tasks", self._handle_tasks)
@@ -79,7 +88,9 @@ class DashboardServer:
             "status": "running",
             "uptime_seconds": round(uptime, 1),
             "paused": self._emergency.is_paused if self._emergency else False,
-            "active_task_id": self._emergency.active_task_id if self._emergency else None,
+            "active_task_id": self._emergency.active_task_id
+            if self._emergency
+            else None,
         }
         if self._rule_store:
             rules = await self._rule_store.list_rules()
@@ -94,8 +105,11 @@ class DashboardServer:
         rows = await cursor.fetchall()
         missions = [
             {
-                "mission_id": r[0], "goal_text": r[1], "status": r[2],
-                "created_at": r[3], "updated_at": r[4],
+                "mission_id": r[0],
+                "goal_text": r[1],
+                "status": r[2],
+                "created_at": r[3],
+                "updated_at": r[4],
             }
             for r in rows
         ]
@@ -105,8 +119,11 @@ class DashboardServer:
         skills = self._registry.list_all()
         data = [
             {
-                "skill_id": s.skill_id, "name": s.name, "description": s.description,
-                "risk_level": s.risk_level.value, "tags": s.tags,
+                "skill_id": s.skill_id,
+                "name": s.name,
+                "description": s.description,
+                "risk_level": s.risk_level.value,
+                "tags": s.tags,
             }
             for s in skills
         ]
@@ -117,13 +134,17 @@ class DashboardServer:
         episode_count = (await episode_cursor.fetchone())[0]
         mission_cursor = await self._db.db.execute("SELECT COUNT(*) FROM missions")
         mission_count = (await mission_cursor.fetchone())[0]
-        embedding_cursor = await self._db.db.execute("SELECT COUNT(*) FROM episode_embeddings")
+        embedding_cursor = await self._db.db.execute(
+            "SELECT COUNT(*) FROM episode_embeddings"
+        )
         embedding_count = (await embedding_cursor.fetchone())[0]
-        return web.json_response({
-            "episode_count": episode_count,
-            "mission_count": mission_count,
-            "embedding_count": embedding_count,
-        })
+        return web.json_response(
+            {
+                "episode_count": episode_count,
+                "mission_count": mission_count,
+                "embedding_count": embedding_count,
+            }
+        )
 
     async def _handle_audit(self, request: web.Request) -> web.Response:
         limit = int(request.query.get("limit", "50"))
@@ -134,12 +155,18 @@ class DashboardServer:
         try:
             body = await request.json()
         except Exception:
-            return web.json_response({"status": "error", "message": "invalid JSON"}, status=400)
+            return web.json_response(
+                {"status": "error", "message": "invalid JSON"}, status=400
+            )
         goal_text = body.get("goal_text")
         if not goal_text:
-            return web.json_response({"status": "error", "message": "goal_text is required"}, status=400)
+            return web.json_response(
+                {"status": "error", "message": "goal_text is required"}, status=400
+            )
         if not self._goal_handler:
-            return web.json_response({"status": "error", "message": "no goal handler configured"}, status=500)
+            return web.json_response(
+                {"status": "error", "message": "no goal handler configured"}, status=500
+            )
         result = await self._goal_handler(goal_text)
         return web.json_response(result)
 
@@ -147,19 +174,25 @@ class DashboardServer:
 
     async def _handle_pause(self, request: web.Request) -> web.Response:
         if not self._emergency:
-            return web.json_response({"error": "emergency controls not configured"}, status=501)
+            return web.json_response(
+                {"error": "emergency controls not configured"}, status=501
+            )
         self._emergency.pause()
         return web.json_response({"status": "paused"})
 
     async def _handle_resume(self, request: web.Request) -> web.Response:
         if not self._emergency:
-            return web.json_response({"error": "emergency controls not configured"}, status=501)
+            return web.json_response(
+                {"error": "emergency controls not configured"}, status=501
+            )
         self._emergency.resume()
         return web.json_response({"status": "resumed"})
 
     async def _handle_kill(self, request: web.Request) -> web.Response:
         if not self._emergency:
-            return web.json_response({"error": "emergency controls not configured"}, status=501)
+            return web.json_response(
+                {"error": "emergency controls not configured"}, status=501
+            )
         try:
             body = await request.json()
         except Exception:
@@ -172,14 +205,20 @@ class DashboardServer:
 
     async def _handle_list_rules(self, request: web.Request) -> web.Response:
         if not self._rule_store:
-            return web.json_response({"error": "approval rules not configured"}, status=501)
+            return web.json_response(
+                {"error": "approval rules not configured"}, status=501
+            )
         rules = await self._rule_store.list_rules()
         data = [
             {
-                "rule_id": r.rule_id, "rule_type": r.rule_type,
-                "match_skill": r.match_skill, "match_risk": r.match_risk,
-                "match_path": r.match_path, "decision": r.decision,
-                "created_at": r.created_at, "expires_at": r.expires_at,
+                "rule_id": r.rule_id,
+                "rule_type": r.rule_type,
+                "match_skill": r.match_skill,
+                "match_risk": r.match_risk,
+                "match_path": r.match_path,
+                "decision": r.decision,
+                "created_at": r.created_at,
+                "expires_at": r.expires_at,
                 "description": r.description,
             }
             for r in rules
@@ -188,12 +227,15 @@ class DashboardServer:
 
     async def _handle_add_rule(self, request: web.Request) -> web.Response:
         if not self._rule_store:
-            return web.json_response({"error": "approval rules not configured"}, status=501)
+            return web.json_response(
+                {"error": "approval rules not configured"}, status=501
+            )
         try:
             body = await request.json()
         except Exception:
             return web.json_response({"error": "invalid JSON"}, status=400)
         from atlas.contracts.types import ApprovalRule
+
         rule = ApprovalRule(
             match_skill=body.get("match_skill", "*"),
             match_risk=body.get("match_risk", "*"),
@@ -206,7 +248,9 @@ class DashboardServer:
 
     async def _handle_remove_rule(self, request: web.Request) -> web.Response:
         if not self._rule_store:
-            return web.json_response({"error": "approval rules not configured"}, status=501)
+            return web.json_response(
+                {"error": "approval rules not configured"}, status=501
+            )
         rule_id = request.match_info["rule_id"]
         removed = await self._rule_store.remove_rule(rule_id)
         if not removed:
@@ -217,16 +261,23 @@ class DashboardServer:
 
     async def _handle_trust_recommendations(self, request: web.Request) -> web.Response:
         if not self._trust:
-            return web.json_response({"error": "trust tracker not configured"}, status=501)
+            return web.json_response(
+                {"error": "trust tracker not configured"}, status=501
+            )
         status_filter = request.query.get("status", "pending")
         recs = await self._trust.list_recommendations(status=status_filter)
         data = [
             {
-                "recommendation_id": r.recommendation_id, "skill_id": r.skill_id,
-                "current_level": r.current_level, "recommended_level": r.recommended_level,
-                "direction": r.direction, "evidence": r.evidence,
-                "status": r.status, "mission_id": r.mission_id,
-                "created_at": r.created_at, "resolved_at": r.resolved_at,
+                "recommendation_id": r.recommendation_id,
+                "skill_id": r.skill_id,
+                "current_level": r.current_level,
+                "recommended_level": r.recommended_level,
+                "direction": r.direction,
+                "evidence": r.evidence,
+                "status": r.status,
+                "mission_id": r.mission_id,
+                "created_at": r.created_at,
+                "resolved_at": r.resolved_at,
             }
             for r in recs
         ]
@@ -234,14 +285,18 @@ class DashboardServer:
 
     async def _handle_trust_accept(self, request: web.Request) -> web.Response:
         if not self._trust:
-            return web.json_response({"error": "trust tracker not configured"}, status=501)
+            return web.json_response(
+                {"error": "trust tracker not configured"}, status=501
+            )
         rec_id = request.match_info["id"]
         await self._trust.resolve_recommendation(rec_id, accepted=True)
         return web.json_response({"status": "accepted"})
 
     async def _handle_trust_dismiss(self, request: web.Request) -> web.Response:
         if not self._trust:
-            return web.json_response({"error": "trust tracker not configured"}, status=501)
+            return web.json_response(
+                {"error": "trust tracker not configured"}, status=501
+            )
         rec_id = request.match_info["id"]
         await self._trust.resolve_recommendation(rec_id, accepted=False)
         return web.json_response({"status": "dismissed"})
@@ -255,9 +310,14 @@ class DashboardServer:
         rows = await cursor.fetchall()
         data = [
             {
-                "skill_id": r[0], "successes": r[1], "failures": r[2],
-                "consecutive_successes": r[3], "total_invocations": r[4],
-                "autonomy_override": r[5], "last_outcome": r[6], "updated_at": r[7],
+                "skill_id": r[0],
+                "successes": r[1],
+                "failures": r[2],
+                "consecutive_successes": r[3],
+                "total_invocations": r[4],
+                "autonomy_override": r[5],
+                "last_outcome": r[6],
+                "updated_at": r[7],
             }
             for r in rows
         ]
@@ -281,8 +341,12 @@ class DashboardServer:
         rows = await cursor.fetchall()
         data = [
             {
-                "task_id": r[0], "mission_id": r[1], "description": r[2],
-                "skill_id": r[3], "status": r[4], "result": r[5],
+                "task_id": r[0],
+                "mission_id": r[1],
+                "description": r[2],
+                "skill_id": r[3],
+                "status": r[4],
+                "result": r[5],
             }
             for r in rows
         ]
@@ -340,10 +404,12 @@ class DashboardServer:
     async def _handle_connectors(self, request: web.Request) -> web.Response:
         connectors = []
         if self._config and self._config.github.token:
-            connectors.append({
-                "name": "github",
-                "status": "configured",
-                "owner": self._config.github.owner,
-                "repo": self._config.github.repo,
-            })
+            connectors.append(
+                {
+                    "name": "github",
+                    "status": "configured",
+                    "owner": self._config.github.owner,
+                    "repo": self._config.github.repo,
+                }
+            )
         return web.json_response(connectors)

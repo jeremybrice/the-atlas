@@ -38,8 +38,14 @@ class ApprovalWorkflow:
         if self._rule_store and request.action:
             match = await self._rule_store.find_matching(request.action)
             if match:
-                decision = ApprovalResult.APPROVED if match.decision == "allow" else ApprovalResult.DENIED
-                logger.info("Standing rule %s matched: %s", match.rule_id, match.decision)
+                decision = (
+                    ApprovalResult.APPROVED
+                    if match.decision == "allow"
+                    else ApprovalResult.DENIED
+                )
+                logger.info(
+                    "Standing rule %s matched: %s", match.rule_id, match.decision
+                )
                 return decision
 
         if not self._interactive:
@@ -48,7 +54,8 @@ class ApprovalWorkflow:
         return await self._prompt_terminal(request)
 
     async def request_batch_approval(
-        self, requests: list[ApprovalRequest],
+        self,
+        requests: list[ApprovalRequest],
     ) -> list[ApprovalResult]:
         """Approve or deny a batch of requests together."""
         if self._auto_approve:
@@ -65,7 +72,11 @@ class ApprovalWorkflow:
                 if req.action:
                     match = await self._rule_store.find_matching(req.action)
                     if match:
-                        results[i] = ApprovalResult.APPROVED if match.decision == "allow" else ApprovalResult.DENIED
+                        results[i] = (
+                            ApprovalResult.APPROVED
+                            if match.decision == "allow"
+                            else ApprovalResult.DENIED
+                        )
                         continue
                 pending_indices.append(i)
         else:
@@ -126,6 +137,7 @@ class ApprovalWorkflow:
 
         if response == "always" and self._rule_store and action:
             from atlas.contracts.types import ApprovalRule
+
             rule = ApprovalRule(
                 match_skill=action.skill_id or "*",
                 match_risk=action.risk_level.value,
@@ -137,6 +149,7 @@ class ApprovalWorkflow:
             return ApprovalResult.APPROVED
         elif response == "never" and self._rule_store and action:
             from atlas.contracts.types import ApprovalRule
+
             rule = ApprovalRule(
                 match_skill=action.skill_id or "*",
                 match_risk=action.risk_level.value,

@@ -44,8 +44,13 @@ class ApprovalRuleStore:
             ),
         )
         await self._db.db.commit()
-        logger.info("Added approval rule: %s (%s %s -> %s)",
-                     rule.rule_id, rule.match_skill, rule.match_risk, rule.decision)
+        logger.info(
+            "Added approval rule: %s (%s %s -> %s)",
+            rule.rule_id,
+            rule.match_skill,
+            rule.match_risk,
+            rule.decision,
+        )
         return rule.rule_id
 
     async def remove_rule(self, rule_id: str) -> bool:
@@ -69,8 +74,14 @@ class ApprovalRuleStore:
         rows = await cursor.fetchall()
         return [
             ApprovalRule(
-                rule_id=r[0], rule_type=r[1], match_skill=r[2], match_risk=r[3],
-                match_path=r[4], decision=r[5], created_at=r[6], expires_at=r[7],
+                rule_id=r[0],
+                rule_type=r[1],
+                match_skill=r[2],
+                match_risk=r[3],
+                match_path=r[4],
+                decision=r[5],
+                created_at=r[6],
+                expires_at=r[7],
                 description=r[8] or "",
             )
             for r in rows
