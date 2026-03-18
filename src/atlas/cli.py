@@ -284,6 +284,51 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
             for t in result.tasks:
                 if t.error:
                     click.echo(f"  - {t.description}: {t.error}", err=True)
+
+        # Trust recommendations
+        if hasattr(result, 'trust_recommendations') and result.trust_recommendations:
+            click.echo("\nTrust recommendations based on this mission:")
+            for idx, rec in enumerate(result.trust_recommendations, 1):
+                evidence = rec.evidence
+                if rec.direction == "escalate":
+                    detail = f"{evidence.get('consecutive_successes', '?')} consecutive successes"
+                else:
+                    detail = f"{evidence.get('failures', '?')} failures"
+                click.echo(f"  {idx}. {rec.skill_id} — {rec.direction} to {rec.recommended_level} ({detail})")
+
+            try:
+                response = input("Accept recommendations? (y/n/select): ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                response = "n"
+
+            if response in ("y", "yes"):
+                from atlas.control.trust import TrustTracker
+                trust_tracker = TrustTracker(
+                    db=db,
+                    escalation_threshold=config.trust.escalation_threshold,
+                    demotion_failure_count=config.trust.demotion_failure_count,
+                    demotion_window_size=config.trust.demotion_window_size,
+                )
+                for rec in result.trust_recommendations:
+                    await trust_tracker.resolve_recommendation(rec.recommendation_id, accepted=True)
+                click.echo("[trust] All recommendations accepted.")
+            elif response == "select":
+                from atlas.control.trust import TrustTracker
+                trust_tracker = TrustTracker(
+                    db=db,
+                    escalation_threshold=config.trust.escalation_threshold,
+                    demotion_failure_count=config.trust.demotion_failure_count,
+                    demotion_window_size=config.trust.demotion_window_size,
+                )
+                for rec in result.trust_recommendations:
+                    try:
+                        choice = input(f"  {rec.skill_id} → {rec.recommended_level}? (y/n): ").strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        choice = "n"
+                    await trust_tracker.resolve_recommendation(rec.recommendation_id, accepted=(choice in ("y", "yes")))
+                click.echo("[trust] Recommendations resolved.")
+            else:
+                click.echo("[trust] Recommendations saved for later review.")
     finally:
         await db.close()
 
@@ -557,6 +602,64 @@ async def _send_daemon_command(socket_path: str, command: str) -> dict:
     return await client.send(DaemonCommand(command=command))
 
 
+async def _send_daemon_command_with_payload(socket_path: str, command: str, payload: dict) -> dict:
+    client = DaemonSocketClient(socket_path)
+    return await client.send(DaemonCommand(command=command, payload=payload))
+
+
+@daemon.command("pause")
+def daemon_pause():
+    """Pause the running daemon (stops accepting new tasks)."""
+    config = _load_config()
+    pid_file = PidFile(str(Path(config.daemon.pid_file).expanduser()))
+    if not pid_file.is_running():
+        click.echo("[daemon] Not running.")
+        return
+    socket_path = str(Path(config.daemon.socket_path).expanduser())
+    result = asyncio.run(_send_daemon_command(socket_path, "pause"))
+    if result.get("status") == "ok":
+        click.echo("[daemon] Paused.")
+    else:
+        click.echo(f"[daemon] Error: {result.get('error', 'unknown')}", err=True)
+
+
+@daemon.command("resume")
+def daemon_resume():
+    """Resume a paused daemon."""
+    config = _load_config()
+    pid_file = PidFile(str(Path(config.daemon.pid_file).expanduser()))
+    if not pid_file.is_running():
+        click.echo("[daemon] Not running.")
+        return
+    socket_path = str(Path(config.daemon.socket_path).expanduser())
+    result = asyncio.run(_send_daemon_command(socket_path, "resume"))
+    if result.get("status") == "ok":
+        click.echo("[daemon] Resumed.")
+    else:
+        click.echo(f"[daemon] Error: {result.get('error', 'unknown')}", err=True)
+
+
+@daemon.command("kill")
+@click.argument("task_id")
+def daemon_kill(task_id: str):
+    """Kill a specific running task."""
+    config = _load_config()
+    pid_file = PidFile(str(Path(config.daemon.pid_file).expanduser()))
+    if not pid_file.is_running():
+        click.echo("[daemon] Not running.")
+        return
+    socket_path = str(Path(config.daemon.socket_path).expanduser())
+    result = asyncio.run(_send_daemon_command_with_payload(socket_path, "kill", {"task_id": task_id}))
+    if result.get("status") == "ok":
+        killed = result.get("payload", {}).get("killed", False)
+        if killed:
+            click.echo(f"[daemon] Task {task_id} cancelled.")
+        else:
+            click.echo(f"[daemon] Task {task_id} not found or not active.")
+    else:
+        click.echo(f"[daemon] Error: {result.get('error', 'unknown')}", err=True)
+
+
 # --- Watch commands ---
 
 @main.group()
@@ -681,6 +784,199 @@ async def _vault_delete(service: str, key: str):
         )
         await db.db.commit()
         click.echo(f"[vault] Deleted: {service}/{key}")
+    finally:
+        await db.close()
+
+
+# --- Rules commands ---
+
+@main.group()
+def rules():
+    """Manage standing approval rules."""
+    pass
+
+
+@rules.command("list")
+def rules_list():
+    """List all standing approval rules."""
+    asyncio.run(_rules_list())
+
+
+async def _rules_list():
+    from atlas.control.approval_rules import ApprovalRuleStore
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        store = ApprovalRuleStore(db)
+        all_rules = await store.list_rules()
+        if not all_rules:
+            click.echo("[rules] No standing rules configured.")
+            return
+        for r in all_rules:
+            expires = f" (expires {r.expires_at})" if r.expires_at else ""
+            click.echo(f"  {r.rule_id[:8]}  {r.match_skill}  risk<={r.match_risk}  → {r.decision}{expires}")
+            if r.description:
+                click.echo(f"           {r.description}")
+    finally:
+        await db.close()
+
+
+@rules.command("add")
+@click.option("--skill", default="*", help="Skill pattern (glob), e.g. 'file.*'")
+@click.option("--risk", default="*", type=click.Choice(["low", "medium", "high", "*"]),
+              help="Maximum risk level to match")
+@click.option("--decision", required=True, type=click.Choice(["allow", "deny"]))
+@click.option("--description", default="", help="Human-readable description")
+def rules_add(skill: str, risk: str, decision: str, description: str):
+    """Add a standing approval rule."""
+    asyncio.run(_rules_add(skill, risk, decision, description))
+
+
+async def _rules_add(skill: str, risk: str, decision: str, description: str):
+    from atlas.contracts.types import ApprovalRule
+    from atlas.control.approval_rules import ApprovalRuleStore
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        store = ApprovalRuleStore(db)
+        rule = ApprovalRule(match_skill=skill, match_risk=risk, decision=decision, description=description)
+        rule_id = await store.add_rule(rule)
+        click.echo(f"[rules] Created rule {rule_id[:8]}: {skill} risk<={risk} → {decision}")
+    finally:
+        await db.close()
+
+
+@rules.command("remove")
+@click.argument("rule_id")
+def rules_remove(rule_id: str):
+    """Remove a standing approval rule by ID (prefix match)."""
+    asyncio.run(_rules_remove(rule_id))
+
+
+async def _rules_remove(rule_id_prefix: str):
+    from atlas.control.approval_rules import ApprovalRuleStore
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        store = ApprovalRuleStore(db)
+        all_rules = await store.list_rules()
+        # Support prefix matching for convenience
+        matches = [r for r in all_rules if r.rule_id.startswith(rule_id_prefix)]
+        if not matches:
+            click.echo(f"[rules] No rule matching '{rule_id_prefix}'")
+            return
+        for r in matches:
+            await store.remove_rule(r.rule_id)
+            click.echo(f"[rules] Removed rule {r.rule_id[:8]}")
+    finally:
+        await db.close()
+
+
+# --- Trust commands ---
+
+@main.group()
+def trust():
+    """Manage skill trust and autonomy recommendations."""
+    pass
+
+
+@trust.command("recommendations")
+def trust_recommendations():
+    """List pending trust recommendations."""
+    asyncio.run(_trust_recommendations())
+
+
+async def _trust_recommendations():
+    from atlas.control.trust import TrustTracker
+    data_dir = _ensure_data_dir()
+    config = _load_config()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        tracker = TrustTracker(
+            db=db,
+            escalation_threshold=config.trust.escalation_threshold,
+            demotion_failure_count=config.trust.demotion_failure_count,
+            demotion_window_size=config.trust.demotion_window_size,
+        )
+        recs = await tracker.list_recommendations(status="pending")
+        if not recs:
+            click.echo("[trust] No pending recommendations.")
+            return
+        for r in recs:
+            click.echo(f"  {r.recommendation_id[:8]}  {r.skill_id}  {r.direction} → {r.recommended_level}")
+            click.echo(f"           evidence: {r.evidence}")
+    finally:
+        await db.close()
+
+
+@trust.command("accept")
+@click.argument("recommendation_id")
+def trust_accept(recommendation_id: str):
+    """Accept a trust recommendation (prefix match)."""
+    asyncio.run(_trust_resolve(recommendation_id, accepted=True))
+
+
+@trust.command("dismiss")
+@click.argument("recommendation_id")
+def trust_dismiss(recommendation_id: str):
+    """Dismiss a trust recommendation (prefix match)."""
+    asyncio.run(_trust_resolve(recommendation_id, accepted=False))
+
+
+async def _trust_resolve(rec_id_prefix: str, accepted: bool):
+    from atlas.control.trust import TrustTracker
+    data_dir = _ensure_data_dir()
+    config = _load_config()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        tracker = TrustTracker(
+            db=db,
+            escalation_threshold=config.trust.escalation_threshold,
+            demotion_failure_count=config.trust.demotion_failure_count,
+            demotion_window_size=config.trust.demotion_window_size,
+        )
+        recs = await tracker.list_recommendations(status="pending")
+        matches = [r for r in recs if r.recommendation_id.startswith(rec_id_prefix)]
+        if not matches:
+            click.echo(f"[trust] No pending recommendation matching '{rec_id_prefix}'")
+            return
+        for r in matches:
+            await tracker.resolve_recommendation(r.recommendation_id, accepted=accepted)
+            action = "Accepted" if accepted else "Dismissed"
+            click.echo(f"[trust] {action}: {r.skill_id} {r.direction} → {r.recommended_level}")
+    finally:
+        await db.close()
+
+
+@trust.command("status")
+def trust_status():
+    """Show trust records for all tracked skills."""
+    asyncio.run(_trust_status())
+
+
+async def _trust_status():
+    data_dir = _ensure_data_dir()
+    db = DatabaseStore(str(data_dir / "data" / "atlas.db"))
+    await db.initialize()
+    try:
+        cursor = await db.db.execute(
+            "SELECT skill_id, successes, failures, total_invocations, "
+            "autonomy_override, consecutive_successes "
+            "FROM trust_records ORDER BY skill_id"
+        )
+        rows = await cursor.fetchall()
+        if not rows:
+            click.echo("[trust] No trust records.")
+            return
+        for r in rows:
+            override = f" (override: {AutonomyLevel(int(r[4])).name})" if r[4] is not None else ""
+            rate = round(r[1] / r[3] * 100, 1) if r[3] > 0 else 0
+            click.echo(f"  {r[0]}  {r[1]}ok {r[2]}fail ({rate}% success, {r[3]} total){override}")
     finally:
         await db.close()
 
