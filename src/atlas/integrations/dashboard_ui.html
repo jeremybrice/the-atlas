@@ -50,6 +50,58 @@
         </div>
     </div>
 
+    <!-- Tabs -->
+    <div class="border-b border-[#1a1a1a] bg-[#111] px-4 flex gap-1 overflow-x-auto">
+        <template x-for="tab in tabs">
+            <button @click="activeTab = tab.id"
+                :class="activeTab === tab.id ? 'text-[#00ff88] border-b-2 border-[#00ff88]' : 'text-[#666] hover:text-[#999]'"
+                class="px-3 py-2 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors"
+                x-text="tab.label">
+            </button>
+        </template>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="p-4 overflow-y-auto" style="height: calc(100vh - 160px);">
+
+        <!-- Missions Tab -->
+        <div x-show="activeTab === 'missions'">
+            <div class="space-y-1">
+                <template x-for="m in missions" :key="m.mission_id">
+                    <div class="bg-[#141414] border border-[#1a1a1a] rounded">
+                        <div @click="toggleMission(m.mission_id)" class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[#1a1a1a]">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <span class="text-xs text-[#666]" x-text="expandedMission === m.mission_id ? '▼' : '▶'"></span>
+                                <span class="truncate" x-text="m.goal_text"></span>
+                            </div>
+                            <div class="flex items-center gap-3 flex-shrink-0">
+                                <span :class="statusBadge(m.status)" class="px-2 py-0.5 rounded text-xs" x-text="m.status"></span>
+                                <span class="text-xs text-[#666]" x-text="new Date(m.created_at).toLocaleString()"></span>
+                            </div>
+                        </div>
+                        <div x-show="expandedMission === m.mission_id" class="border-t border-[#1a1a1a] px-4 py-2">
+                            <template x-for="t in (tasks[m.mission_id] || [])" :key="t.task_id">
+                                <div class="flex items-center justify-between py-1 text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[#555]">├</span>
+                                        <span x-text="t.description" class="truncate"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-[#666]" x-text="t.skill_id"></span>
+                                        <span :class="statusBadge(t.status)" class="px-2 py-0.5 rounded text-xs" x-text="t.status"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="!tasks[m.mission_id] || tasks[m.mission_id].length === 0" class="text-xs text-[#555] py-1">No tasks</div>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="missions.length === 0" class="text-[#555] text-sm py-8 text-center">No missions yet</div>
+            </div>
+        </div>
+
+    </div>
+
     <script>
     function dashboard() {
         return {
@@ -62,12 +114,30 @@
             goalFeedback: '',
             controlFeedback: '',
 
+            // Tabs
+            tabs: [
+                { id: 'missions', label: 'Missions' },
+                { id: 'skills', label: 'Skills' },
+                { id: 'trust', label: 'Trust' },
+                { id: 'rules', label: 'Rules' },
+                { id: 'audit', label: 'Audit' },
+                { id: 'memory', label: 'Memory' },
+                { id: 'connectors', label: 'Connectors' },
+                { id: 'config', label: 'Config' },
+            ],
+
+            // Missions & Tasks
+            missions: [],
+            tasks: {},
+            expandedMission: null,
+
             // Polling
             statusInterval: null,
             tabInterval: null,
 
             init() {
                 this.pollStatus();
+                this.pollTab();
                 this.statusInterval = setInterval(() => this.pollStatus(), 3000);
                 this.$watch('activeTab', () => { this.pollTab(); this.resetTabPolling(); });
                 this.resetTabPolling();
@@ -97,7 +167,38 @@
                 } catch (e) { this.statusError = true; }
             },
 
-            async pollTab() { /* filled in later tasks */ },
+            async pollTab() {
+                if (this.activeTab === 'missions') await this.fetchMissions();
+            },
+
+            async fetchMissions() {
+                try {
+                    const res = await fetch('/api/missions');
+                    this.missions = await res.json();
+                } catch (e) {}
+            },
+
+            async toggleMission(missionId) {
+                if (this.expandedMission === missionId) { this.expandedMission = null; return; }
+                this.expandedMission = missionId;
+                try {
+                    const res = await fetch('/api/tasks?mission_id=' + missionId);
+                    this.tasks[missionId] = await res.json();
+                } catch (e) {}
+            },
+
+            statusBadge(status) {
+                const colors = {
+                    completed: 'bg-green-500/20 text-green-400',
+                    failed: 'bg-red-500/20 text-red-400',
+                    active: 'bg-amber-500/20 text-amber-400',
+                    executing: 'bg-amber-500/20 text-amber-400',
+                    pending: 'bg-[#333] text-[#999]',
+                    cancelled: 'bg-[#222] text-[#666]',
+                    planning: 'bg-blue-500/20 text-blue-400',
+                };
+                return colors[status] || 'bg-[#333] text-[#999]';
+            },
 
             async submitGoal() {
                 if (!this.goalText.trim()) return;
