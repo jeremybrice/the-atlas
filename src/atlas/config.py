@@ -69,6 +69,13 @@ class MCPConfig:
 
 
 @dataclass
+class ClaudeConfig:
+    api_key: str = ""  # empty = read from ANTHROPIC_API_KEY env var
+    model: str = "claude-sonnet-4-20250514"
+    timeout_seconds: int = 120
+
+
+@dataclass
 class EnvironmentConfig:
     command_timeout_seconds: int = 30
 
@@ -112,6 +119,7 @@ class AtlasConfig:
     trust: TrustConfig = field(default_factory=TrustConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     skills: SkillsConfig = field(default_factory=SkillsConfig)
+    claude: ClaudeConfig = field(default_factory=ClaudeConfig)
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     observation: ObservationConfig = field(default_factory=ObservationConfig)
     reactive: ReactiveConfig = field(default_factory=ReactiveConfig)
@@ -126,6 +134,7 @@ _SECTION_MAP = {
     "trust": TrustConfig,
     "memory": MemoryConfig,
     "skills": SkillsConfig,
+    "claude": ClaudeConfig,
     "environment": EnvironmentConfig,
     "observation": ObservationConfig,
     "reactive": ReactiveConfig,

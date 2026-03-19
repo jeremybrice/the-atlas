@@ -151,7 +151,11 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
 
     fs = FilesystemProvider(workspace=str(Path.cwd()))
     proc = ProcessProvider()
-    claude = ClaudeCodeBridge()
+    claude = ClaudeCodeBridge(
+        model=config.claude.model,
+        timeout=config.claude.timeout_seconds,
+        api_key=config.claude.api_key or None,
+    )
     env = EnvironmentFacade(filesystem=fs, process=proc, claude=claude)
 
     registry = SkillRegistry()
@@ -427,7 +431,11 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
 
     fs = FilesystemProvider(workspace=str(Path.cwd()))
     proc = ProcessProvider()
-    claude = ClaudeCodeBridge()
+    claude = ClaudeCodeBridge(
+        model=config.claude.model,
+        timeout=config.claude.timeout_seconds,
+        api_key=config.claude.api_key or None,
+    )
     env = EnvironmentFacade(filesystem=fs, process=proc, claude=claude)
 
     registry = SkillRegistry()

@@ -1,9 +1,21 @@
-"""Claude Code Bridge — calls the Anthropic API via the Python SDK."""
+"""Claude Code Bridge — calls the Anthropic Messages API via the Python SDK.
+
+Authentication
+--------------
+The bridge authenticates using an API key, resolved in this order:
+
+1. ``api_key`` parameter passed to ``ClaudeCodeBridge.__init__``
+2. ``ANTHROPIC_API_KEY`` environment variable (read automatically by the SDK)
+
+If neither is available, the bridge raises ``ClaudeCodeUnavailableError``
+at construction time rather than failing on the first API call.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 
@@ -43,16 +55,52 @@ def parse_response_text(text: str) -> ClaudeResponse:
 
 
 class ClaudeCodeBridge:
-    """Calls the Anthropic Messages API via async client."""
+    """Calls the Anthropic Messages API via async client.
 
-    def __init__(self, model: str = DEFAULT_MODEL, timeout: int = 120):
+    Parameters
+    ----------
+    model : str
+        Model identifier (default: ``claude-sonnet-4-20250514``).
+    timeout : int
+        Request timeout in seconds (default: 120).
+    api_key : str | None
+        Explicit API key. When *None*, falls back to ``ANTHROPIC_API_KEY``
+        environment variable.
+    """
+
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        timeout: int = 120,
+        api_key: str | None = None,
+    ):
         self._model = model
         self._timeout = timeout
-        self._client = anthropic.AsyncAnthropic(timeout=timeout)
+
+        # Resolve the API key: explicit arg → env var → fail fast
+        resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not resolved_key:
+            raise ClaudeCodeUnavailableError(
+                "No Anthropic API key found. Set the ANTHROPIC_API_KEY environment "
+                "variable or pass api_key= to ClaudeCodeBridge."
+            )
+
+        self._client = anthropic.AsyncAnthropic(
+            api_key=resolved_key, timeout=timeout
+        )
 
     async def oneshot(
         self, prompt: str, system_prompt: str | None = None
     ) -> ClaudeResponse:
+        """Send a one-shot prompt to the Anthropic Messages API.
+
+        Raises
+        ------
+        ClaudeCodeUnavailableError
+            If the API key is invalid (HTTP 401).
+        ClaudeCodeError
+            On transient failures (timeouts, rate limits, server errors).
+        """
         start = time.monotonic()
         try:
             message = await self._client.messages.create(
@@ -63,7 +111,8 @@ class ClaudeCodeBridge:
             )
         except anthropic.AuthenticationError as e:
             raise ClaudeCodeUnavailableError(
-                "ANTHROPIC_API_KEY not set or invalid."
+                "Anthropic API key is invalid or expired. Check your "
+                "ANTHROPIC_API_KEY environment variable."
             ) from e
         except anthropic.APITimeoutError as e:
             raise ClaudeCodeError(

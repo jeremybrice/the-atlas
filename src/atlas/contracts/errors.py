@@ -48,11 +48,11 @@ class EnvironmentActionError(RetriableError):
 
 
 class ClaudeCodeError(RetriableError):
-    """Claude Code CLI call failed (rate limit, timeout, parse error)."""
+    """Anthropic API call failed (rate limit, timeout, parse error)."""
 
 
 class ClaudeCodeUnavailableError(FatalError):
-    """Claude Code CLI is not reachable at all."""
+    """Anthropic API is not reachable (missing or invalid API key)."""
 
 
 # --- Skills ---

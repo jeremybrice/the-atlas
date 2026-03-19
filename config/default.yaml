@@ -45,6 +45,13 @@ skills:
   forge_max_retries: 1
   custom_skills_dir: "~/.atlas/skills"
 
+claude:
+  # API key is read from ANTHROPIC_API_KEY env var by default.
+  # Uncomment to override:
+  # api_key: "sk-ant-..."
+  model: "claude-sonnet-4-20250514"
+  timeout_seconds: 120
+
 environment:
   command_timeout_seconds: 30
 
