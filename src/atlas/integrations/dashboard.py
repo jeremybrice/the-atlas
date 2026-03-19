@@ -45,6 +45,7 @@ class DashboardServer:
 
     def create_app(self) -> web.Application:
         app = web.Application()
+        app.router.add_get("/", self._serve_ui)
         # Existing
         app.router.add_get("/api/status", self._handle_status)
         app.router.add_get("/api/missions", self._handle_missions)
@@ -79,6 +80,17 @@ class DashboardServer:
         app.router.add_get("/api/config", self._handle_config)
         app.router.add_get("/api/connectors", self._handle_connectors)
         return app
+
+    # --- UI handler ---
+
+    async def _serve_ui(self, request: web.Request) -> web.Response:
+        import importlib.resources as pkg_resources
+
+        html_path = pkg_resources.files("atlas.integrations").joinpath(
+            "dashboard_ui.html"
+        )
+        html = html_path.read_text(encoding="utf-8")
+        return web.Response(text=html, content_type="text/html")
 
     # --- Existing endpoints ---
 

@@ -267,3 +267,16 @@ async def test_connectors_endpoint(full_dashboard, aiohttp_client):
     assert resp.status == 200
     data = await resp.json()
     assert isinstance(data, list)
+
+
+async def test_root_serves_html(full_dashboard, aiohttp_client):
+    server, _, _, _ = full_dashboard
+    app = server.create_app()
+    client = await aiohttp_client(app)
+
+    resp = await client.get("/")
+    assert resp.status == 200
+    assert resp.content_type == "text/html"
+    body = await resp.text()
+    assert "ATLAS" in body
+    assert "alpine" in body.lower() or "x-data" in body.lower()
