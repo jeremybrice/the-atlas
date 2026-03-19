@@ -36,6 +36,18 @@
                 </span>
             </template>
         </div>
+        <!-- Row 3: Controls -->
+        <div class="flex items-center gap-3 text-sm">
+            <input x-model="goalText" @keydown.enter="submitGoal()" type="text" placeholder="Enter goal..."
+                class="bg-[#0a0a0a] border border-[#333] rounded px-3 py-1 flex-1 text-[#e0e0e0] placeholder-[#555] focus:border-[#00ff88] focus:outline-none" />
+            <button @click="submitGoal()" class="bg-[#00ff88] text-black px-3 py-1 rounded text-xs font-bold hover:bg-[#00cc66]">Execute</button>
+            <span class="text-[#666]">|</span>
+            <button @click="emergencyAction('pause')" class="border border-amber-500 text-amber-400 px-2 py-1 rounded text-xs hover:bg-amber-500/10">Pause</button>
+            <button @click="emergencyAction('resume')" class="border border-green-500 text-green-400 px-2 py-1 rounded text-xs hover:bg-green-500/10">Resume</button>
+            <button @click="killTask()" class="border border-red-500 text-red-400 px-2 py-1 rounded text-xs hover:bg-red-500/10">Kill Task</button>
+            <span x-show="goalFeedback" x-text="goalFeedback" class="text-xs text-[#00ff88]" x-transition></span>
+            <span x-show="controlFeedback" x-text="controlFeedback" class="text-xs text-amber-400" x-transition></span>
+        </div>
     </div>
 
     <script>
@@ -46,6 +58,9 @@
             health: { database: 'unknown', skill_registry: 'unknown', memory: 'unknown', emergency: 'unknown' },
             activeTab: 'missions',
             statusError: false,
+            goalText: '',
+            goalFeedback: '',
+            controlFeedback: '',
 
             // Polling
             statusInterval: null,
@@ -83,6 +98,34 @@
             },
 
             async pollTab() { /* filled in later tasks */ },
+
+            async submitGoal() {
+                if (!this.goalText.trim()) return;
+                try {
+                    const res = await fetch('/api/goal', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({goal_text: this.goalText}) });
+                    const data = await res.json();
+                    this.goalFeedback = res.ok ? 'Goal submitted' : (data.message || data.error || 'Error');
+                    if (res.ok) this.goalText = '';
+                } catch (e) { this.goalFeedback = 'Connection error'; }
+                setTimeout(() => this.goalFeedback = '', 2000);
+            },
+
+            async emergencyAction(action, body) {
+                try {
+                    const opts = { method: 'POST', headers: {'Content-Type': 'application/json'} };
+                    if (body) opts.body = JSON.stringify(body);
+                    const res = await fetch('/api/emergency/' + action, opts);
+                    const data = await res.json();
+                    this.controlFeedback = data.status || (data.killed ? 'Task killed' : 'No active task');
+                } catch (e) { this.controlFeedback = 'Error'; }
+                setTimeout(() => this.controlFeedback = '', 2000);
+                this.pollStatus();
+            },
+
+            async killTask() {
+                const taskId = prompt('Enter task ID to kill:');
+                if (taskId) this.emergencyAction('kill', { task_id: taskId });
+            },
 
             formatUptime(s) {
                 const h = Math.floor(s / 3600);
