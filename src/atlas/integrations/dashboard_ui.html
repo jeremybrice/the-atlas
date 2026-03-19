@@ -44,7 +44,13 @@
             <span class="text-[#666]">|</span>
             <button @click="emergencyAction('pause')" class="border border-amber-500 text-amber-400 px-2 py-1 rounded text-xs hover:bg-amber-500/10">Pause</button>
             <button @click="emergencyAction('resume')" class="border border-green-500 text-green-400 px-2 py-1 rounded text-xs hover:bg-green-500/10">Resume</button>
-            <button @click="killTask()" class="border border-red-500 text-red-400 px-2 py-1 rounded text-xs hover:bg-red-500/10">Kill Task</button>
+            <button x-show="!showKillInput" @click="showKillInput = true" class="border border-red-500 text-red-400 px-2 py-1 rounded text-xs hover:bg-red-500/10">Kill Task</button>
+            <span x-show="showKillInput" class="flex items-center gap-1" x-transition>
+                <input x-model="killTaskId" @keydown.enter="killTask()" @keydown.escape="showKillInput = false; killTaskId = ''" type="text" placeholder="task ID"
+                    class="bg-[#0a0a0a] border border-red-500/50 rounded px-2 py-1 text-xs w-24 text-[#e0e0e0] placeholder-[#555] focus:outline-none" x-ref="killInput" />
+                <button @click="killTask()" class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs hover:bg-red-500/30">Kill</button>
+                <button @click="showKillInput = false; killTaskId = ''" class="text-[#666] text-xs hover:text-[#999]">Cancel</button>
+            </span>
             <span x-show="goalFeedback" x-text="goalFeedback" class="text-xs text-[#00ff88]" x-transition></span>
             <span x-show="controlFeedback" x-text="controlFeedback" class="text-xs text-amber-400" x-transition></span>
         </div>
@@ -113,6 +119,8 @@
             goalText: '',
             goalFeedback: '',
             controlFeedback: '',
+            showKillInput: false,
+            killTaskId: '',
 
             // Tabs
             tabs: [
@@ -224,8 +232,10 @@
             },
 
             async killTask() {
-                const taskId = prompt('Enter task ID to kill:');
-                if (taskId) this.emergencyAction('kill', { task_id: taskId });
+                if (!this.killTaskId.trim()) return;
+                await this.emergencyAction('kill', { task_id: this.killTaskId });
+                this.killTaskId = '';
+                this.showKillInput = false;
             },
 
             formatUptime(s) {
