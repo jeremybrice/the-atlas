@@ -219,8 +219,7 @@ class DatabaseStore:
     async def _migrate_trust_records(self) -> None:
         """Add recent_outcomes column to trust_records if missing."""
         cursor = await self._db.execute(
-            "SELECT name FROM sqlite_master "
-            "WHERE type='table' AND name='trust_records'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='trust_records'"
         )
         if not await cursor.fetchone():
             return  # table doesn't exist yet, _create_tables will create it
