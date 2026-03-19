@@ -4,13 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ATLAS Dashboard</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-[#0a0a0a] text-[#e0e0e0] font-mono" x-data="dashboard()">
-    <div class="p-4">ATLAS Dashboard — placeholder</div>
     <script>
-    function dashboard() { return {} }
+    tailwind.config = { theme: { extend: { fontFamily: { mono: ['JetBrains Mono', 'monospace'] } } } }
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-[#0a0a0a] text-[#e0e0e0] font-mono min-h-screen" x-data="dashboard()">
+
+    <!-- Status Bar -->
+    <div class="border-b border-[#1a1a1a] bg-[#141414] px-4 py-3 space-y-2">
+        <!-- Row 1: State -->
+        <div class="flex items-center gap-4 text-sm">
+            <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" :class="statusError ? 'bg-red-500' : status.paused ? 'bg-amber-400' : 'bg-green-400'"></span>
+                <span x-text="statusError ? 'Disconnected' : status.paused ? 'Paused' : 'Running'" class="font-bold"></span>
+            </span>
+            <span class="text-[#666]">|</span>
+            <span>Uptime: <span x-text="formatUptime(status.uptime_seconds)" class="text-[#00ff88]"></span></span>
+            <span class="text-[#666]">|</span>
+            <span>Task: <span x-text="status.active_task_id || 'Idle'" :class="status.active_task_id ? 'text-amber-400' : 'text-[#666]'"></span></span>
+        </div>
+        <!-- Row 2: Health -->
+        <div class="flex items-center gap-4 text-xs">
+            <template x-for="key in ['database', 'skill_registry', 'memory', 'emergency']">
+                <span class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full" :style="'background:' + healthColor(health[key])"></span>
+                    <span x-text="key.replace('_', ' ')" class="capitalize text-[#999]"></span>
+                </span>
+            </template>
+        </div>
+    </div>
+
+    <script>
+    function dashboard() {
+        return {
+            // Status bar state
+            status: { status: 'connecting', uptime_seconds: 0, paused: false, active_task_id: null, standing_rules_count: 0 },
+            health: { database: 'unknown', skill_registry: 'unknown', memory: 'unknown', emergency: 'unknown' },
+            activeTab: 'missions',
+            statusError: false,
+
+            // Polling
+            statusInterval: null,
+            tabInterval: null,
+
+            init() {
+                this.pollStatus();
+                this.statusInterval = setInterval(() => this.pollStatus(), 3000);
+                this.$watch('activeTab', () => { this.pollTab(); this.resetTabPolling(); });
+                this.resetTabPolling();
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        clearInterval(this.statusInterval);
+                        clearInterval(this.tabInterval);
+                    } else {
+                        this.pollStatus();
+                        this.statusInterval = setInterval(() => this.pollStatus(), 3000);
+                        this.resetTabPolling();
+                    }
+                });
+            },
+
+            resetTabPolling() {
+                clearInterval(this.tabInterval);
+                this.tabInterval = setInterval(() => this.pollTab(), 5000);
+            },
+
+            async pollStatus() {
+                try {
+                    const [statusRes, healthRes] = await Promise.all([fetch('/api/status'), fetch('/api/health')]);
+                    this.status = await statusRes.json();
+                    this.health = await healthRes.json();
+                    this.statusError = false;
+                } catch (e) { this.statusError = true; }
+            },
+
+            async pollTab() { /* filled in later tasks */ },
+
+            formatUptime(s) {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const sec = Math.floor(s % 60);
+                return h > 0 ? `${h}h ${m}m ${sec}s` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+            },
+
+            healthColor(val) {
+                if (!val) return '#666';
+                if (val.startsWith('ok')) return '#00ff88';
+                if (val === 'paused') return '#ffaa00';
+                return '#ff4444';
+            },
+        }
+    }
     </script>
 </body>
 </html>
