@@ -30,6 +30,7 @@ class DatabaseStore:
     async def _create_tables(self) -> None:
         # Migrate FTS5 table if it exists with old schema (missing lessons column)
         await self._migrate_fts5()
+        await self._migrate_trust_records()
 
         await self._db.executescript("""
             CREATE TABLE IF NOT EXISTS episodes (
@@ -214,3 +215,22 @@ class DatabaseStore:
         )
         await self._db.commit()
         self._fts5_needs_rebuild = False
+
+    async def _migrate_trust_records(self) -> None:
+        """Add recent_outcomes column to trust_records if missing."""
+        cursor = await self._db.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name='trust_records'"
+        )
+        if not await cursor.fetchone():
+            return  # table doesn't exist yet, _create_tables will create it
+
+        cursor = await self._db.execute("PRAGMA table_info(trust_records)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "recent_outcomes" in columns:
+            return  # already migrated
+
+        await self._db.execute(
+            "ALTER TABLE trust_records ADD COLUMN recent_outcomes TEXT"
+        )
+        await self._db.commit()

@@ -1,6 +1,6 @@
 # Decisions Log
 
-**Mission:** Control Plane Completion
+**Mission:** ATLAS Dashboard UI
 **Started:** 2026-03-18
 
 ---
