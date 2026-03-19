@@ -241,6 +241,47 @@
             </div>
         </div>
 
+        <!-- Memory Tab -->
+        <div x-show="activeTab === 'memory'">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <template x-for="[label, key] in [['Episodes', 'episode_count'], ['Missions', 'mission_count'], ['Embeddings', 'embedding_count']]">
+                    <div class="bg-[#141414] border border-[#1a1a1a] rounded p-6 text-center">
+                        <div class="text-4xl font-bold text-[#00ff88]" x-text="memoryStats[key]"></div>
+                        <div class="text-xs text-[#666] uppercase tracking-wider mt-2" x-text="label"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Connectors Tab -->
+        <div x-show="activeTab === 'connectors'">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <template x-for="c in connectors" :key="c.name">
+                    <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-2 h-2 rounded-full" :class="c.status === 'configured' ? 'bg-green-400' : 'bg-red-400'"></span>
+                            <span class="font-bold text-[#00ff88]" x-text="c.name"></span>
+                            <span :class="c.status === 'configured' ? 'text-green-400' : 'text-red-400'" class="text-xs" x-text="c.status"></span>
+                        </div>
+                        <div x-show="c.owner" class="text-xs text-[#666]"><span x-text="c.owner + '/' + c.repo"></span></div>
+                    </div>
+                </template>
+                <div x-show="connectors.length === 0" class="text-[#555] text-sm py-8">No connectors configured</div>
+            </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div x-show="activeTab === 'config'">
+            <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4">
+                <template x-for="[key, val] in Object.entries(configData)" :key="key">
+                    <div class="flex justify-between py-1 border-b border-[#1a1a1a]/50 text-sm">
+                        <span class="text-[#999]" x-text="key"></span>
+                        <span class="text-[#00ff88]" x-text="typeof val === 'object' ? JSON.stringify(val) : String(val)"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -290,6 +331,11 @@
             // Audit
             auditEntries: [],
 
+            // Memory, Connectors, Config
+            memoryStats: { episode_count: 0, mission_count: 0, embedding_count: 0 },
+            connectors: [],
+            configData: {},
+
             // Polling
             statusInterval: null,
             tabInterval: null,
@@ -332,6 +378,9 @@
                 else if (this.activeTab === 'trust') await this.fetchTrust();
                 else if (this.activeTab === 'rules') await this.fetchRules();
                 else if (this.activeTab === 'audit') await this.fetchAudit();
+                else if (this.activeTab === 'memory') await this.fetchMemory();
+                else if (this.activeTab === 'connectors') await this.fetchConnectors();
+                else if (this.activeTab === 'config') await this.fetchConfig();
             },
 
             async fetchMissions() {
@@ -408,6 +457,18 @@
 
             async fetchAudit() {
                 try { const res = await fetch('/api/audit?limit=100'); this.auditEntries = await res.json(); } catch (e) {}
+            },
+
+            async fetchMemory() {
+                try { const res = await fetch('/api/memory/stats'); this.memoryStats = await res.json(); } catch (e) {}
+            },
+
+            async fetchConnectors() {
+                try { const res = await fetch('/api/connectors'); this.connectors = await res.json(); } catch (e) {}
+            },
+
+            async fetchConfig() {
+                try { const res = await fetch('/api/config'); this.configData = await res.json(); } catch (e) {}
             },
 
             statusBadge(status) {
