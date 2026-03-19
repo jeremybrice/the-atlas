@@ -38,26 +38,34 @@ def register_seed_skills(
         return result
 
     registry.register(
-        "file.read", "Read File",
+        "file.read",
+        "Read File",
         "Read the contents of a file at the given path",
-        handler=file_read, risk_level="low",
+        handler=file_read,
+        risk_level="low",
         tags=["filesystem", "read"],
     )
     registry.register(
-        "file.write", "Write File",
+        "file.write",
+        "Write File",
         "Write content to a file at the given path, creating directories if needed",
-        handler=file_write, risk_level="medium",
+        handler=file_write,
+        risk_level="medium",
         tags=["filesystem", "write"],
     )
     registry.register(
-        "file.search", "Search Files",
+        "file.search",
+        "Search Files",
         "Search for files matching a glob pattern in a directory tree",
-        handler=file_search, risk_level="low",
+        handler=file_search,
+        risk_level="low",
         tags=["filesystem", "search"],
     )
     registry.register(
-        "shell.execute", "Execute Shell Command",
+        "shell.execute",
+        "Execute Shell Command",
         "Run a shell command and return stdout, stderr, and exit code",
-        handler=shell_execute, risk_level="high",
+        handler=shell_execute,
+        risk_level="high",
         tags=["process", "shell"],
     )

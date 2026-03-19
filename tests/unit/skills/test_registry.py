@@ -15,10 +15,20 @@ def registry() -> SkillRegistry:
     async def write_handler(params: dict) -> dict:
         return {"written": True}
 
-    reg.register("file.read", "Read File", "Read contents of a file",
-                 handler=read_handler, risk_level="low")
-    reg.register("file.write", "Write File", "Write content to a file",
-                 handler=write_handler, risk_level="medium")
+    reg.register(
+        "file.read",
+        "Read File",
+        "Read contents of a file",
+        handler=read_handler,
+        risk_level="low",
+    )
+    reg.register(
+        "file.write",
+        "Write File",
+        "Write content to a file",
+        handler=write_handler,
+        risk_level="medium",
+    )
     return reg
 
 

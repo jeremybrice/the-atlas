@@ -23,8 +23,11 @@ async def test_daemon_loop_handles_goal_command():
 
     try:
         from atlas.daemon.protocol import DaemonSocketClient
+
         client = DaemonSocketClient(socket_path)
-        resp = await client.send(DaemonCommand(command="goal", payload={"goal_text": "test goal"}))
+        resp = await client.send(
+            DaemonCommand(command="goal", payload={"goal_text": "test goal"})
+        )
         assert resp["status"] == "ok"
         executor.assert_called_once()
     finally:
@@ -38,12 +41,15 @@ async def test_daemon_loop_status_command():
     pid_path = f"{tmpdir}/t.pid"
     executor = AsyncMock()
 
-    loop = DaemonLoop(socket_path=socket_path, pid_path=pid_path, goal_executor=executor)
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
     task = asyncio.create_task(loop.start())
     await asyncio.sleep(0.1)
 
     try:
         from atlas.daemon.protocol import DaemonSocketClient
+
         client = DaemonSocketClient(socket_path)
         resp = await client.send(DaemonCommand(command="status"))
         assert resp["status"] == "ok"
@@ -59,11 +65,14 @@ async def test_daemon_loop_shutdown_command():
     pid_path = f"{tmpdir}/t.pid"
     executor = AsyncMock()
 
-    loop = DaemonLoop(socket_path=socket_path, pid_path=pid_path, goal_executor=executor)
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
     task = asyncio.create_task(loop.start())
     await asyncio.sleep(0.1)
 
     from atlas.daemon.protocol import DaemonSocketClient
+
     client = DaemonSocketClient(socket_path)
     resp = await client.send(DaemonCommand(command="shutdown"))
     assert resp["status"] == "ok"
@@ -77,12 +86,15 @@ async def test_daemon_loop_status_includes_http_running():
     pid_path = f"{tmpdir}/t.pid"
     executor = AsyncMock()
 
-    loop = DaemonLoop(socket_path=socket_path, pid_path=pid_path, goal_executor=executor)
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
     task = asyncio.create_task(loop.start())
     await asyncio.sleep(0.1)
 
     try:
         from atlas.daemon.protocol import DaemonSocketClient
+
         client = DaemonSocketClient(socket_path)
         resp = await client.send(DaemonCommand(command="status"))
         assert resp["status"] == "ok"
@@ -108,3 +120,83 @@ async def test_daemon_loop_accepts_mcp_bridge():
     )
     assert loop._mcp_bridge is mock_bridge
     assert loop._mcp_servers == []
+
+
+async def test_daemon_loop_pause_command():
+    tmpdir = tempfile.mkdtemp()
+    socket_path = f"{tmpdir}/t.sock"
+    pid_path = f"{tmpdir}/t.pid"
+    executor = AsyncMock()
+
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
+    task = asyncio.create_task(loop.start())
+    await asyncio.sleep(0.1)
+
+    try:
+        from atlas.daemon.protocol import DaemonSocketClient
+
+        client = DaemonSocketClient(socket_path)
+        resp = await client.send(DaemonCommand(command="pause"))
+        assert resp["status"] == "ok"
+
+        # Status should now report paused
+        status_resp = await client.send(DaemonCommand(command="status"))
+        assert status_resp["payload"]["paused"] is True
+    finally:
+        await loop.stop()
+        await task
+
+
+async def test_daemon_loop_resume_command():
+    tmpdir = tempfile.mkdtemp()
+    socket_path = f"{tmpdir}/t.sock"
+    pid_path = f"{tmpdir}/t.pid"
+    executor = AsyncMock()
+
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
+    task = asyncio.create_task(loop.start())
+    await asyncio.sleep(0.1)
+
+    try:
+        from atlas.daemon.protocol import DaemonSocketClient
+
+        client = DaemonSocketClient(socket_path)
+        await client.send(DaemonCommand(command="pause"))
+        resp = await client.send(DaemonCommand(command="resume"))
+        assert resp["status"] == "ok"
+
+        status_resp = await client.send(DaemonCommand(command="status"))
+        assert status_resp["payload"]["paused"] is False
+    finally:
+        await loop.stop()
+        await task
+
+
+async def test_daemon_loop_kill_command_no_active_task():
+    tmpdir = tempfile.mkdtemp()
+    socket_path = f"{tmpdir}/t.sock"
+    pid_path = f"{tmpdir}/t.pid"
+    executor = AsyncMock()
+
+    loop = DaemonLoop(
+        socket_path=socket_path, pid_path=pid_path, goal_executor=executor
+    )
+    task = asyncio.create_task(loop.start())
+    await asyncio.sleep(0.1)
+
+    try:
+        from atlas.daemon.protocol import DaemonSocketClient
+
+        client = DaemonSocketClient(socket_path)
+        resp = await client.send(
+            DaemonCommand(command="kill", payload={"task_id": "nonexistent"})
+        )
+        assert resp["status"] == "ok"
+        assert resp["payload"]["killed"] is False
+    finally:
+        await loop.stop()
+        await task

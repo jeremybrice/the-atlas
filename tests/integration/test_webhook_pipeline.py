@@ -1,4 +1,5 @@
 """Integration test: webhook payload → EventBridge → ObservationEngine pipeline."""
+
 import pytest
 from atlas.integrations.event_bridge import EventBridge
 from atlas.integrations.webhook import WebhookServer
@@ -56,6 +57,7 @@ async def test_dashboard_reads_real_data(db, aiohttp_client):
 
     async def noop(p):
         return {}
+
     registry.register("test.skill", "Test", "test skill", noop)
 
     dashboard = DashboardServer(db=db, audit=audit, registry=registry)

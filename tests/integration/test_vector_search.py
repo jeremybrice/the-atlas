@@ -56,7 +56,9 @@ async def pipeline(tmp_path: Path):
     mock_provider.compose_episode_text = mock_compose
 
     vector_store = VectorStore(db, model="voyage-3-lite")
-    episodic = EpisodicMemoryStore(db, embedding_provider=mock_provider, vector_store=vector_store)
+    episodic = EpisodicMemoryStore(
+        db, embedding_provider=mock_provider, vector_store=vector_store
+    )
 
     yield db, episodic, vector_store, mock_provider
     await db.close()
@@ -67,9 +69,15 @@ async def test_record_and_semantic_search(pipeline):
     db, episodic, vector_store, provider = pipeline
 
     # Record episodes in different domains
-    await episodic.record(Episode(trigger="deploy the app", plan="run deploy script", outcome="succeeded"))
-    await episodic.record(Episode(trigger="run test suite", plan="pytest -v", outcome="all passed"))
-    await episodic.record(Episode(trigger="debug memory leak", plan="profile heap", outcome="fixed"))
+    await episodic.record(
+        Episode(trigger="deploy the app", plan="run deploy script", outcome="succeeded")
+    )
+    await episodic.record(
+        Episode(trigger="run test suite", plan="pytest -v", outcome="all passed")
+    )
+    await episodic.record(
+        Episode(trigger="debug memory leak", plan="profile heap", outcome="fixed")
+    )
 
     # Search semantically for deployment-related episodes
     query_vec = await provider.embed_query("deploy to production")
@@ -88,9 +96,17 @@ async def test_hybrid_retrieval_end_to_end(pipeline):
     """Hybrid scoring should combine FTS5 keyword and vector similarity."""
     db, episodic, vector_store, provider = pipeline
 
-    await episodic.record(Episode(trigger="deploy the app to staging", plan="run deploy", outcome="succeeded"))
-    await episodic.record(Episode(trigger="deploy to production", plan="prod deploy", outcome="failed"))
-    await episodic.record(Episode(trigger="run unit tests", plan="pytest", outcome="passed"))
+    await episodic.record(
+        Episode(
+            trigger="deploy the app to staging", plan="run deploy", outcome="succeeded"
+        )
+    )
+    await episodic.record(
+        Episode(trigger="deploy to production", plan="prod deploy", outcome="failed")
+    )
+    await episodic.record(
+        Episode(trigger="run unit tests", plan="pytest", outcome="passed")
+    )
 
     # Keyword search
     keyword_results = await episodic.search_scored("deploy", limit=10)
@@ -103,7 +119,9 @@ async def test_hybrid_retrieval_end_to_end(pipeline):
 
     # Merge
     assembler = ContextAssembler()
-    merged = assembler.merge_scores(keyword_scores, semantic_scores, semantic_weight=0.6, keyword_weight=0.4)
+    merged = assembler.merge_scores(
+        keyword_scores, semantic_scores, semantic_weight=0.6, keyword_weight=0.4
+    )
 
     # Both deploy episodes should score higher than the test episode
     deploy_ids = [eid for eid in merged if eid in keyword_scores]
@@ -121,8 +139,12 @@ async def test_migration_then_search(pipeline):
 
     # Record episodes WITHOUT embedding (simulate pre-vector-search state)
     plain_episodic = EpisodicMemoryStore(db)  # no embedding provider
-    await plain_episodic.record(Episode(trigger="deploy old app", plan="legacy script", outcome="ok"))
-    await plain_episodic.record(Episode(trigger="test old code", plan="make test", outcome="passed"))
+    await plain_episodic.record(
+        Episode(trigger="deploy old app", plan="legacy script", outcome="ok")
+    )
+    await plain_episodic.record(
+        Episode(trigger="test old code", plan="make test", outcome="passed")
+    )
 
     assert await vector_store.count() == 0  # no embeddings yet
 
@@ -149,7 +171,9 @@ async def test_graceful_degradation_keyword_only(tmp_path):
     failing_provider.compose_episode_text.return_value = "test text"
 
     vector_store = VectorStore(db, model="voyage-3-lite")
-    episodic = EpisodicMemoryStore(db, embedding_provider=failing_provider, vector_store=vector_store)
+    episodic = EpisodicMemoryStore(
+        db, embedding_provider=failing_provider, vector_store=vector_store
+    )
 
     await episodic.record(Episode(trigger="deploy the app", outcome="done"))
 

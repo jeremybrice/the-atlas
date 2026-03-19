@@ -32,7 +32,10 @@ async def test_scheduled_trigger_stop():
         events.append(event)
 
     trigger = ScheduledTrigger(
-        name="stop-test", interval_seconds=0.1, goal_template="x", callback=on_event,
+        name="stop-test",
+        interval_seconds=0.1,
+        goal_template="x",
+        callback=on_event,
     )
     await trigger.start()
     await asyncio.sleep(0.25)

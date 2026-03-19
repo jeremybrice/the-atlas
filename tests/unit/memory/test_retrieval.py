@@ -4,8 +4,7 @@ from atlas.memory.retrieval import ContextAssembler
 
 def test_assemble_within_budget():
     episodes = [
-        Episode(trigger=f"task-{i}", outcome=f"result-{i}" * 50)
-        for i in range(10)
+        Episode(trigger=f"task-{i}", outcome=f"result-{i}" * 50) for i in range(10)
     ]
     assembler = ContextAssembler()
     query = ContextQuery(
@@ -36,8 +35,7 @@ def test_estimate_tokens():
 
 def test_assemble_prioritizes_recent():
     episodes = [
-        Episode(trigger=f"old-task-{i}", outcome="old result")
-        for i in range(5)
+        Episode(trigger=f"old-task-{i}", outcome="old result") for i in range(5)
     ]
     recent = Episode(trigger="recent-task", outcome="recent result")
     episodes.append(recent)
@@ -57,14 +55,25 @@ def test_assemble_prioritizes_recent():
 def test_assemble_planning_context_includes_procedures():
     assembler = ContextAssembler()
     episodes = [
-        Episode(episode_type=EpisodeType.TASK_EXECUTION, trigger="run tests", outcome="completed"),
+        Episode(
+            episode_type=EpisodeType.TASK_EXECUTION,
+            trigger="run tests",
+            outcome="completed",
+        ),
     ]
     procedures = [
-        Procedure(name="run-tests", description="pytest after change",
-                  trigger_pattern="filesystem:*.py",
-                  steps=[{"skill": "shell.execute", "params": {"command": "pytest"}}]),
+        Procedure(
+            name="run-tests",
+            description="pytest after change",
+            trigger_pattern="filesystem:*.py",
+            steps=[{"skill": "shell.execute", "params": {"command": "pytest"}}],
+        ),
     ]
-    query = ContextQuery(purpose="planning", task_description="run tests on changed files", token_budget=4000)
+    query = ContextQuery(
+        purpose="planning",
+        task_description="run tests on changed files",
+        token_budget=4000,
+    )
     bundle = assembler.assemble(query, episodes, procedures=procedures)
     all_text = " ".join(c["text"] for c in bundle.contents)
     assert "run-tests" in all_text
@@ -72,10 +81,18 @@ def test_assemble_planning_context_includes_procedures():
 
 def test_assemble_reflection_context_prioritizes_failures():
     assembler = ContextAssembler()
-    success_ep = Episode(episode_type=EpisodeType.TASK_EXECUTION, trigger="task A", outcome="completed")
-    failure_ep = Episode(episode_type=EpisodeType.TASK_EXECUTION, trigger="task B", outcome="failed",
-                         lessons=["don't do X"])
-    query = ContextQuery(purpose="reflection", task_description="analyze recent work", token_budget=500)
+    success_ep = Episode(
+        episode_type=EpisodeType.TASK_EXECUTION, trigger="task A", outcome="completed"
+    )
+    failure_ep = Episode(
+        episode_type=EpisodeType.TASK_EXECUTION,
+        trigger="task B",
+        outcome="failed",
+        lessons=["don't do X"],
+    )
+    query = ContextQuery(
+        purpose="reflection", task_description="analyze recent work", token_budget=500
+    )
     bundle = assembler.assemble(query, [success_ep, failure_ep])
     # Failure episode should appear first in reflection context
     first_text = bundle.contents[0]["text"]
@@ -89,8 +106,10 @@ def test_hybrid_merge_both_sets():
     semantic_scores = {"ep-1": 0.9, "ep-3": 0.7}
 
     merged = assembler.merge_scores(
-        keyword_scores, semantic_scores,
-        semantic_weight=0.6, keyword_weight=0.4,
+        keyword_scores,
+        semantic_scores,
+        semantic_weight=0.6,
+        keyword_weight=0.4,
     )
 
     # ep-1 in both: 0.6*0.9 + 0.4*0.8 = 0.86
@@ -108,8 +127,10 @@ def test_hybrid_merge_empty_semantic():
     semantic_scores = {}
 
     merged = assembler.merge_scores(
-        keyword_scores, semantic_scores,
-        semantic_weight=0.6, keyword_weight=0.4,
+        keyword_scores,
+        semantic_scores,
+        semantic_weight=0.6,
+        keyword_weight=0.4,
     )
     assert abs(merged["ep-1"] - 0.4) < 0.01
 
@@ -121,8 +142,10 @@ def test_hybrid_merge_empty_keyword():
     semantic_scores = {"ep-1": 1.0}
 
     merged = assembler.merge_scores(
-        keyword_scores, semantic_scores,
-        semantic_weight=0.6, keyword_weight=0.4,
+        keyword_scores,
+        semantic_scores,
+        semantic_weight=0.6,
+        keyword_weight=0.4,
     )
     assert abs(merged["ep-1"] - 0.6) < 0.01
 
@@ -130,7 +153,9 @@ def test_hybrid_merge_empty_keyword():
 def test_rank_by_merged_scores():
     """assemble_ranked should rank episodes by merged score, not recency."""
     assembler = ContextAssembler()
-    ep_high = Episode(episode_id="ep-high", trigger="highly relevant", outcome="success")
+    ep_high = Episode(
+        episode_id="ep-high", trigger="highly relevant", outcome="success"
+    )
     ep_low = Episode(episode_id="ep-low", trigger="less relevant", outcome="success")
     episodes_by_id = {"ep-high": ep_high, "ep-low": ep_low}
     merged_scores = {"ep-high": 0.9, "ep-low": 0.3}

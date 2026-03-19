@@ -1,4 +1,5 @@
 """Connector ABC — base class for external service integrations."""
+
 import asyncio
 import logging
 import time
@@ -34,12 +35,19 @@ class ConnectorABC(ConnectorInterface):
         ...
 
     @abstractmethod
-    async def handle_event(self, event_type: str, payload: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
+    async def handle_event(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        ctx: ExecutionContext | None = None,
+    ) -> dict[str, Any]:
         """Handle an incoming event from the external service."""
         ...
 
     @abstractmethod
-    async def execute_action(self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None) -> dict[str, Any]:
+    async def execute_action(
+        self, action: str, params: dict[str, Any], ctx: ExecutionContext | None = None
+    ) -> dict[str, Any]:
         """Execute an outbound action on the external service."""
         ...
 
@@ -49,13 +57,17 @@ class ConnectorABC(ConnectorInterface):
             now = time.monotonic()
             window = 60.0  # 1 minute window
             # Prune old timestamps
-            self._call_timestamps = [t for t in self._call_timestamps if now - t < window]
+            self._call_timestamps = [
+                t for t in self._call_timestamps if now - t < window
+            ]
             if len(self._call_timestamps) >= self._rate_limit_rpm:
                 wait_time = window - (now - self._call_timestamps[0])
                 if wait_time > 0:
                     logger.warning(
                         "%s rate limit reached (%d rpm), waiting %.1fs",
-                        self._service_name, self._rate_limit_rpm, wait_time,
+                        self._service_name,
+                        self._rate_limit_rpm,
+                        wait_time,
                     )
                     await asyncio.sleep(wait_time)
             self._call_timestamps.append(time.monotonic())

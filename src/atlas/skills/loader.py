@@ -1,4 +1,5 @@
 """Skill Loader — loads custom skills from Python files in a directory."""
+
 import importlib.util
 import logging
 from pathlib import Path
@@ -7,7 +8,13 @@ from atlas.skills.registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_ATTRS = ["SKILL_ID", "SKILL_NAME", "SKILL_DESCRIPTION", "SKILL_RISK", "handler"]
+REQUIRED_ATTRS = [
+    "SKILL_ID",
+    "SKILL_NAME",
+    "SKILL_DESCRIPTION",
+    "SKILL_RISK",
+    "handler",
+]
 
 
 def load_skills_from_directory(directory: str, registry: SkillRegistry) -> int:

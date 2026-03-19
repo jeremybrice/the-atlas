@@ -83,7 +83,9 @@ class ClaudeCodeBridge:
         if not text.strip():
             logger.warning(
                 "Claude returned empty text. model=%s, stop_reason=%s, elapsed=%dms",
-                message.model, message.stop_reason, elapsed,
+                message.model,
+                message.stop_reason,
+                elapsed,
             )
 
         response = parse_response_text(text)

@@ -34,14 +34,18 @@ async def test_record_and_retrieve(episodic_store: EpisodicMemoryStore):
 
 
 async def test_search_fts(episodic_store: EpisodicMemoryStore):
-    await episodic_store.record(Episode(
-        trigger="deploy the application",
-        outcome="deployment succeeded",
-    ))
-    await episodic_store.record(Episode(
-        trigger="fix the login bug",
-        outcome="bug fixed",
-    ))
+    await episodic_store.record(
+        Episode(
+            trigger="deploy the application",
+            outcome="deployment succeeded",
+        )
+    )
+    await episodic_store.record(
+        Episode(
+            trigger="fix the login bug",
+            outcome="bug fixed",
+        )
+    )
     results = await episodic_store.search("deploy", limit=10)
     assert len(results) == 1
     assert "deploy" in results[0].trigger
@@ -78,14 +82,18 @@ async def test_metadata_table_exists(episodic_store: EpisodicMemoryStore):
 
 
 async def test_search_scored_returns_scores(episodic_store: EpisodicMemoryStore):
-    await episodic_store.record(Episode(
-        trigger="deploy the application to production",
-        outcome="deployment succeeded",
-    ))
-    await episodic_store.record(Episode(
-        trigger="fix the login bug in auth module",
-        outcome="bug fixed",
-    ))
+    await episodic_store.record(
+        Episode(
+            trigger="deploy the application to production",
+            outcome="deployment succeeded",
+        )
+    )
+    await episodic_store.record(
+        Episode(
+            trigger="fix the login bug in auth module",
+            outcome="bug fixed",
+        )
+    )
     results = await episodic_store.search_scored("deploy", limit=10)
     assert len(results) >= 1
     # Returns list of (episode_id, score) tuples

@@ -6,17 +6,27 @@ from atlas.contracts.types import EventType, ObservationEvent
 
 def test_register_parser():
     bridge = EventBridge()
-    bridge.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK, source="github", payload=p,
-    ))
+    bridge.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload=p,
+        ),
+    )
     assert "github" in bridge.parsers
 
 
 def test_parse_event():
     bridge = EventBridge()
-    bridge.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK, source="github", payload=p,
-    ))
+    bridge.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload=p,
+        ),
+    )
     event = bridge.parse("github", "push", {"ref": "refs/heads/main"})
     assert event is not None
     assert event.event_type == EventType.WEBHOOK
@@ -40,7 +50,9 @@ def test_verify_github_signature():
 
 def test_verify_github_signature_invalid():
     bridge = EventBridge()
-    assert bridge.verify_signature("github", b"body", "sha256=invalid", "secret") is False
+    assert (
+        bridge.verify_signature("github", b"body", "sha256=invalid", "secret") is False
+    )
 
 
 def test_verify_unknown_service_returns_false():
@@ -50,9 +62,14 @@ def test_verify_unknown_service_returns_false():
 
 def test_parsed_event_has_correlation_id():
     bridge = EventBridge()
-    bridge.register_parser("github", lambda et, p: ObservationEvent(
-        event_type=EventType.WEBHOOK, source="github", payload=p,
-    ))
+    bridge.register_parser(
+        "github",
+        lambda et, p: ObservationEvent(
+            event_type=EventType.WEBHOOK,
+            source="github",
+            payload=p,
+        ),
+    )
     event = bridge.parse("github", "push", {"ref": "main"})
     assert event is not None
     assert event.correlation_id

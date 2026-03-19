@@ -11,11 +11,11 @@ def test_parse_plain_text():
 
 
 def test_parse_json_block():
-    text = '''Here is the plan:
+    text = """Here is the plan:
 ```json
 {"tasks": [{"description": "read file", "skill": "file.read"}]}
 ```
-Done.'''
+Done."""
     response = parse_response_text(text)
     assert response.parsed_output is not None
     assert response.parsed_output["tasks"][0]["skill"] == "file.read"
@@ -29,7 +29,7 @@ def test_parse_no_json():
 
 
 def test_parse_invalid_json_block():
-    text = '```json\n{invalid json}\n```'
+    text = "```json\n{invalid json}\n```"
     response = parse_response_text(text)
     assert response.parsed_output is None
     assert response.content == text
@@ -45,6 +45,7 @@ def test_parse_raw_json():
 def test_bridge_uses_async_client():
     """ClaudeCodeBridge should use AsyncAnthropic, not sync Anthropic."""
     import anthropic as _anthropic
+
     bridge = ClaudeCodeBridge.__new__(ClaudeCodeBridge)
     bridge._model = "test"
     bridge._timeout = 60

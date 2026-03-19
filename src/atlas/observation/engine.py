@@ -1,4 +1,5 @@
 """Observation Engine -- coordinates watchers, schedulers, and the event router."""
+
 import logging
 from typing import Any, Callable, Coroutine
 
@@ -50,7 +51,8 @@ class ObservationEngine:
             await s.start()
         logger.info(
             "Observation engine started: %d watchers, %d schedulers",
-            len(self._watchers), len(self._schedulers),
+            len(self._watchers),
+            len(self._schedulers),
         )
 
     async def stop(self) -> None:

@@ -52,7 +52,9 @@ class SkillRegistry:
         terms = query_lower.split()
         results = []
         for skill in self._skills.values():
-            searchable = f"{skill.name} {skill.description} {' '.join(skill.tags)}".lower()
+            searchable = (
+                f"{skill.name} {skill.description} {' '.join(skill.tags)}".lower()
+            )
             if all(term in searchable for term in terms):
                 results.append(skill.to_descriptor())
         return results

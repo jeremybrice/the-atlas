@@ -8,7 +8,9 @@ from atlas.contracts.types import AutonomyLevel, ExecutionContext
 
 @pytest.fixture
 async def tracker(db):
-    t = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+    t = TrustTracker(
+        db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5
+    )
     return t
 
 
@@ -72,7 +74,9 @@ async def test_get_record_creates_default_if_missing(tracker):
 
 async def test_escalation_fires_only_once(db):
     """After escalation fires, subsequent successes should not re-trigger it."""
-    tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5
+    )
 
     # Reach threshold
     for _ in range(3):
@@ -86,7 +90,12 @@ async def test_escalation_fires_only_once(db):
 
 async def test_count_recent_failures_ignores_old_failures(db):
     """A skill with old failures and recent successes should not trigger demotion."""
-    tracker = TrustTracker(db=db, escalation_threshold=100, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db,
+        escalation_threshold=100,
+        demotion_failure_count=3,
+        demotion_window_size=5,
+    )
 
     # Simulate a skill that had 3 failures long ago, then many successes
     await tracker.set_autonomy_override("file.read", AutonomyLevel.ACT_WITHIN_BOUNDS)
@@ -102,30 +111,40 @@ async def test_count_recent_failures_ignores_old_failures(db):
 
 
 async def test_record_outcome_accepts_execution_context(db):
-    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5
+    )
     ctx = ExecutionContext.new(mission_id="test-mission")
     result = await tracker.record_outcome("file.read", success=True, ctx=ctx)
     assert result.skill_id == "file.read"
 
 
 async def test_get_record_accepts_execution_context(db):
-    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5
+    )
     ctx = ExecutionContext.new(mission_id="test-mission")
     record = await tracker.get_record("file.read", ctx=ctx)
     assert record.skill_id == "file.read"
 
 
 async def test_set_autonomy_override_accepts_execution_context(db):
-    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5
+    )
     ctx = ExecutionContext.new(mission_id="test-mission")
-    await tracker.set_autonomy_override("file.read", AutonomyLevel.ACT_WITHIN_BOUNDS, ctx=ctx)
+    await tracker.set_autonomy_override(
+        "file.read", AutonomyLevel.ACT_WITHIN_BOUNDS, ctx=ctx
+    )
     override = await tracker.get_autonomy_override("file.read", ctx=ctx)
     assert override == AutonomyLevel.ACT_WITHIN_BOUNDS
 
 
 async def test_escalation_reset_persisted_atomically(db):
     """After escalation, the DB should have consecutive_successes=0 from a single save."""
-    tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5
+    )
 
     for _ in range(3):
         result = await tracker.record_outcome("file.read", success=True)
@@ -139,7 +158,9 @@ async def test_escalation_reset_persisted_atomically(db):
 
 async def test_record_outcome_logs_correlation_id(db, caplog):
     """When ctx is provided, correlation_id should appear in log output."""
-    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5
+    )
     ctx = ExecutionContext.new(mission_id="test-mission")
     with caplog.at_level(logging.DEBUG, logger="atlas.control.trust"):
         await tracker.record_outcome("file.read", success=True, ctx=ctx)
@@ -148,7 +169,9 @@ async def test_record_outcome_logs_correlation_id(db, caplog):
 
 async def test_get_record_populates_recent_outcomes(db):
     """get_record should populate recent_outcomes from the DB, not leave it empty."""
-    tracker = TrustTracker(db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=10, demotion_failure_count=3, demotion_window_size=5
+    )
 
     # Record some outcomes so recent_outcomes has data
     await tracker.record_outcome("file.read", success=True)

@@ -20,7 +20,7 @@ def forge_env(tmp_path):
 
 async def test_forge_generates_skill(forge_env):
     # Mock Claude returning valid skill code
-    skill_code = '''
+    skill_code = """
 SKILL_ID = "custom.count_lines"
 SKILL_NAME = "Count Lines"
 SKILL_DESCRIPTION = "Counts lines in a file"
@@ -30,10 +30,10 @@ async def handler(params):
     path = params["path"]
     with open(path) as f:
         return {"count": len(f.readlines())}
-'''
-    forge_env["claude"].oneshot = AsyncMock(return_value=ClaudeResponse(
-        content=skill_code, parsed_output=None
-    ))
+"""
+    forge_env["claude"].oneshot = AsyncMock(
+        return_value=ClaudeResponse(content=skill_code, parsed_output=None)
+    )
 
     forge = SkillForge(
         registry=forge_env["registry"],
@@ -51,9 +51,11 @@ async def handler(params):
 
 
 async def test_forge_handles_invalid_code(forge_env):
-    forge_env["claude"].oneshot = AsyncMock(return_value=ClaudeResponse(
-        content="this is not valid python {{{{", parsed_output=None
-    ))
+    forge_env["claude"].oneshot = AsyncMock(
+        return_value=ClaudeResponse(
+            content="this is not valid python {{{{", parsed_output=None
+        )
+    )
     forge = SkillForge(
         registry=forge_env["registry"],
         claude_bridge=forge_env["claude"],

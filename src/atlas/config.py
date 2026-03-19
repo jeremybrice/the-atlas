@@ -1,4 +1,5 @@
 """Structured configuration loading with YAML defaults and user overrides."""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -48,7 +49,14 @@ class MemoryConfig:
 
 @dataclass
 class SkillsConfig:
-    seed_skills: list[str] = field(default_factory=lambda: ["file.read", "file.write", "file.search", "shell.execute"])
+    seed_skills: list[str] = field(
+        default_factory=lambda: [
+            "file.read",
+            "file.write",
+            "file.search",
+            "shell.execute",
+        ]
+    )
     forge_enabled: bool = True
     forge_max_retries: int = 1
     custom_skills_dir: str = "~/.atlas/skills"
@@ -130,6 +138,7 @@ _SECTION_MAP = {
 def _merge_into_dataclass(dc_class, data: dict):
     """Create a dataclass instance from a dict, ignoring unknown keys."""
     import dataclasses
+
     fields = {f.name: f for f in dataclasses.fields(dc_class)}
     filtered = {}
     for k, v in data.items():

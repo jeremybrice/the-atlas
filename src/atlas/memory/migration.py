@@ -69,7 +69,10 @@ class VectorMigration:
             embeddings = await self._provider.embed_batch(texts)
 
             if not embeddings:
-                logger.warning("Embedding API failed on chunk %d — migration will retry on next startup", i // batch_size)
+                logger.warning(
+                    "Embedding API failed on chunk %d — migration will retry on next startup",
+                    i // batch_size,
+                )
                 return total_embedded
 
             ids = [ep.episode_id for ep in chunk[: len(embeddings)]]
@@ -77,7 +80,11 @@ class VectorMigration:
             total_embedded += len(embeddings)
 
             if len(embeddings) < len(chunk):
-                logger.warning("Partial chunk: %d/%d — migration will retry on next startup", len(embeddings), len(chunk))
+                logger.warning(
+                    "Partial chunk: %d/%d — migration will retry on next startup",
+                    len(embeddings),
+                    len(chunk),
+                )
                 return total_embedded
 
         logger.info("Migrated %d episodes to vector store", total_embedded)

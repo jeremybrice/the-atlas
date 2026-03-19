@@ -26,6 +26,7 @@ reactive:
 
 def test_mcp_config_defaults():
     from atlas.config import MCPConfig
+
     cfg = MCPConfig()
     assert cfg.servers == []
     assert cfg.enabled is True
@@ -33,11 +34,13 @@ def test_mcp_config_defaults():
 
 def test_webhook_event_type():
     from atlas.contracts.types import EventType
+
     assert EventType.WEBHOOK == "webhook"
 
 
 def test_webhook_config_defaults():
     from atlas.config import WebhookConfig
+
     cfg = WebhookConfig()
     assert cfg.enabled is False
     assert cfg.host == "127.0.0.1"
@@ -48,6 +51,7 @@ def test_webhook_config_defaults():
 
 def test_vector_search_config_defaults():
     from atlas.config import VectorSearchConfig
+
     cfg = VectorSearchConfig()
     assert cfg.enabled is False
     assert cfg.model == "voyage-3-lite"
@@ -58,6 +62,7 @@ def test_vector_search_config_defaults():
 
 def test_vector_search_nested_in_memory_config():
     from atlas.config import MemoryConfig, VectorSearchConfig
+
     cfg = MemoryConfig()
     assert isinstance(cfg.vector_search, VectorSearchConfig)
     assert cfg.vector_search.enabled is False

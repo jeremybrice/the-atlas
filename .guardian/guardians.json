@@ -1,8 +1,8 @@
 {
   "spec_guardian": {
     "enabled": true,
-    "design_doc": "docs/plans/2026-03-17-phase3-stage-d1-vector-search-design.md",
-    "agent": "/Users/jeremybrice/.claude/plugins/cache/the-pantheon/guardian/1.0.0-alpha/agents/spec-guardian.md"
+    "design_doc": "docs/plans/2026-03-18-control-plane-completion-design.md",
+    "agent": "/Users/jeremybrice/.claude/plugins/marketplaces/the-pantheon/guardian/agents/spec-guardian.md"
   },
   "test_guardian": {
     "enabled": true,
@@ -11,7 +11,7 @@
   },
   "convention_guardian": {
     "enabled": true,
-    "agent": "/Users/jeremybrice/.claude/plugins/cache/the-pantheon/guardian/1.0.0-alpha/agents/convention-guardian.md"
+    "agent": "/Users/jeremybrice/.claude/plugins/marketplaces/the-pantheon/guardian/agents/convention-guardian.md"
   },
   "integration_guardian": {
     "enabled": true,

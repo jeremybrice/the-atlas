@@ -14,6 +14,7 @@ SkillHandler = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 @dataclass
 class SkillDefinition:
     """Full skill definition stored in the registry."""
+
     skill_id: str
     name: str
     description: str

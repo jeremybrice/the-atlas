@@ -1,4 +1,5 @@
 """Credential Vault — encrypted storage for API keys and OAuth tokens."""
+
 import base64
 import logging
 import os
@@ -51,9 +52,7 @@ class CredentialVault:
     @staticmethod
     async def _get_or_create_salt(db: DatabaseStore) -> bytes:
         """Retrieve existing salt from vault_meta, or generate and store a new one."""
-        cursor = await db.db.execute(
-            "SELECT value FROM vault_meta WHERE key = 'salt'"
-        )
+        cursor = await db.db.execute("SELECT value FROM vault_meta WHERE key = 'salt'")
         row = await cursor.fetchone()
         if row:
             return row[0]
@@ -87,7 +86,9 @@ class CredentialVault:
         await self._db.db.commit()
         logger.info("%sStored credential: %s/%s", self._log_ctx(ctx), service, key)
 
-    async def get(self, service: str, key: str, ctx: ExecutionContext | None = None) -> str | None:
+    async def get(
+        self, service: str, key: str, ctx: ExecutionContext | None = None
+    ) -> str | None:
         cursor = await self._db.db.execute(
             "SELECT encrypted_value FROM credentials WHERE service=? AND key=?",
             (service, key),
@@ -103,7 +104,9 @@ class CredentialVault:
                 cause=e,
             )
 
-    async def delete(self, service: str, key: str, ctx: ExecutionContext | None = None) -> None:
+    async def delete(
+        self, service: str, key: str, ctx: ExecutionContext | None = None
+    ) -> None:
         await self._db.db.execute(
             "DELETE FROM credentials WHERE service=? AND key=?",
             (service, key),
@@ -118,7 +121,9 @@ class CredentialVault:
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
-    async def list_keys(self, service: str, ctx: ExecutionContext | None = None) -> list[str]:
+    async def list_keys(
+        self, service: str, ctx: ExecutionContext | None = None
+    ) -> list[str]:
         cursor = await self._db.db.execute(
             "SELECT key FROM credentials WHERE service=? ORDER BY key",
             (service,),

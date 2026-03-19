@@ -94,7 +94,9 @@ def test_get_autonomy_level():
 def test_per_skill_override_allows_low_risk_when_escalated():
     engine = PolicyEngine(
         autonomy_level=AutonomyLevel.SUGGEST,  # global = suggest (require approval)
-        skill_overrides={"file.read": AutonomyLevel.ACT_WITHIN_BOUNDS},  # per-skill escalated
+        skill_overrides={
+            "file.read": AutonomyLevel.ACT_WITHIN_BOUNDS
+        },  # per-skill escalated
     )
     action = ProposedAction(
         action_type="filesystem_read",
@@ -127,8 +129,14 @@ def test_get_autonomy_level_returns_override_when_set():
         autonomy_level=AutonomyLevel.SUGGEST,
         skill_overrides={"file.read": AutonomyLevel.ACT_WITHIN_BOUNDS},
     )
-    assert engine.get_autonomy_level("skills", skill="file.read") == AutonomyLevel.ACT_WITHIN_BOUNDS
-    assert engine.get_autonomy_level("skills", skill="shell.execute") == AutonomyLevel.SUGGEST
+    assert (
+        engine.get_autonomy_level("skills", skill="file.read")
+        == AutonomyLevel.ACT_WITHIN_BOUNDS
+    )
+    assert (
+        engine.get_autonomy_level("skills", skill="shell.execute")
+        == AutonomyLevel.SUGGEST
+    )
 
 
 def test_evaluate_returns_deny_for_unknown_autonomy_level():

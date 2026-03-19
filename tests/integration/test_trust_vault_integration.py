@@ -1,4 +1,5 @@
 """Integration test: TrustTracker + PolicyEngine + CredentialVault working together."""
+
 import pytest
 from atlas.control.policy import PolicyEngine
 from atlas.control.trust import TrustTracker
@@ -13,7 +14,9 @@ from atlas.integrations.vault import CredentialVault
 
 @pytest.fixture
 async def components(db):
-    tracker = TrustTracker(db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5)
+    tracker = TrustTracker(
+        db=db, escalation_threshold=3, demotion_failure_count=2, demotion_window_size=5
+    )
     policy = PolicyEngine(autonomy_level=AutonomyLevel.SUGGEST)
     vault = await CredentialVault.create(db=db, passphrase="integration-test")
     return tracker, policy, vault

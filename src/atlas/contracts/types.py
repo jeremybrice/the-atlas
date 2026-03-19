@@ -11,6 +11,7 @@ from typing import Any
 
 # --- Identifiers ---
 
+
 def new_id() -> str:
     """Generate a new UUID string."""
     return str(uuid.uuid4())
@@ -18,19 +19,24 @@ def new_id() -> str:
 
 # --- Execution Context (observability) ---
 
+
 @dataclass(frozen=True)
 class ExecutionContext:
     """Propagated through all cross-domain calls for tracing."""
+
     correlation_id: str
     mission_id: str | None = None
     task_id: str | None = None
 
     @classmethod
-    def new(cls, mission_id: str | None = None, task_id: str | None = None) -> ExecutionContext:
+    def new(
+        cls, mission_id: str | None = None, task_id: str | None = None
+    ) -> ExecutionContext:
         return cls(correlation_id=new_id(), mission_id=mission_id, task_id=task_id)
 
 
 # --- Enums ---
+
 
 class PolicyDecision(Enum):
     ALLOW = "allow"
@@ -96,11 +102,13 @@ class EpisodeType(Enum):
 
 # --- Shared Data Models ---
 
+
 @dataclass
 class ProposedAction:
     """Submitted to Control Plane for permission check."""
+
     action_type: str  # e.g., "filesystem_write", "shell_execute"
-    domain: str       # e.g., "skills", "core"
+    domain: str  # e.g., "skills", "core"
     description: str
     params: dict[str, Any] = field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW
@@ -110,14 +118,15 @@ class ProposedAction:
 @dataclass
 class AuditEntry:
     """Written to the audit log for every significant action."""
+
     entry_id: str = field(default_factory=new_id)
     timestamp: datetime = field(default_factory=datetime.now)
     correlation_id: str | None = None
-    actor: str = ""           # domain/component
+    actor: str = ""  # domain/component
     action_type: str = ""
     action_details: dict[str, Any] = field(default_factory=dict)
     policy_decision: PolicyDecision | None = None
-    outcome: str = ""         # "success", "failure", "denied", "timeout"
+    outcome: str = ""  # "success", "failure", "denied", "timeout"
     mission_id: str | None = None
     task_id: str | None = None
 
@@ -125,6 +134,7 @@ class AuditEntry:
 @dataclass
 class Episode:
     """A record of something the agent did or observed."""
+
     episode_id: str = field(default_factory=new_id)
     timestamp: datetime = field(default_factory=datetime.now)
     episode_type: EpisodeType = EpisodeType.TASK_EXECUTION
@@ -142,7 +152,8 @@ class Episode:
 @dataclass
 class ContextQuery:
     """Request for assembled context from the Memory System."""
-    purpose: str              # "planning", "execution", "reflection"
+
+    purpose: str  # "planning", "execution", "reflection"
     task_description: str
     mission_context: str | None = None
     token_budget: int = 4000
@@ -152,6 +163,7 @@ class ContextQuery:
 @dataclass
 class ContextBundle:
     """Assembled context ready for injection into a Claude Code prompt."""
+
     contents: list[dict[str, Any]] = field(default_factory=list)
     total_tokens: int = 0
     budget_tokens: int = 4000
@@ -160,6 +172,7 @@ class ContextBundle:
 @dataclass
 class SkillDescriptor:
     """Lightweight skill view for search results."""
+
     skill_id: str
     name: str
     description: str
@@ -172,9 +185,10 @@ class SkillDescriptor:
 @dataclass
 class SkillResult:
     """Result of a skill invocation."""
+
     invocation_id: str = field(default_factory=new_id)
     skill_id: str = ""
-    status: str = "success"   # "success", "failure", "timeout", "cancelled"
+    status: str = "success"  # "success", "failure", "timeout", "cancelled"
     output: Any = None
     error: str | None = None
     execution_time_ms: int = 0
@@ -183,9 +197,12 @@ class SkillResult:
 @dataclass
 class EnvironmentAction:
     """An action to be executed in the environment."""
+
     action_id: str = field(default_factory=new_id)
-    action_type: str = ""     # "filesystem_read", "filesystem_write", "process_execute", etc.
-    provider: str = ""        # "filesystem", "process", "claude_code"
+    action_type: str = (
+        ""  # "filesystem_read", "filesystem_write", "process_execute", etc.
+    )
+    provider: str = ""  # "filesystem", "process", "claude_code"
     params: dict[str, Any] = field(default_factory=dict)
     timeout: int = 30
 
@@ -193,8 +210,9 @@ class EnvironmentAction:
 @dataclass
 class ActionResult:
     """Result of an environment action."""
+
     action_id: str = ""
-    status: str = "success"   # "success", "failure", "timeout", "denied"
+    status: str = "success"  # "success", "failure", "timeout", "denied"
     output: Any = None
     error: str | None = None
     execution_time_ms: int = 0
@@ -203,6 +221,7 @@ class ActionResult:
 @dataclass
 class ClaudeResponse:
     """Response from a Claude Code CLI call."""
+
     content: str = ""
     parsed_output: Any = None
     tokens_used: int = 0
@@ -212,6 +231,7 @@ class ClaudeResponse:
 @dataclass
 class ApprovalRequest:
     """Submitted to the Approval Workflow when permission check returns REQUIRE_APPROVAL."""
+
     request_id: str = field(default_factory=new_id)
     action: ProposedAction | None = None
     reasoning: str = ""
@@ -227,6 +247,7 @@ class ApprovalResult(Enum):
 
 # --- Phase 2: Observation, Daemon, Procedural Memory ---
 
+
 class EventType(str, Enum):
     FILESYSTEM = "filesystem"
     SCHEDULED = "scheduled"
@@ -240,7 +261,9 @@ class ObservationEvent:
     source: str
     payload: dict[str, Any] = field(default_factory=dict)
     event_id: str = field(default_factory=new_id)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     priority: int = 5
     correlation_id: str = field(default_factory=new_id)
 
@@ -275,9 +298,11 @@ class DaemonResponse:
 
 # --- Phase 3: Trust Escalation ---
 
+
 @dataclass
 class TrustRecord:
     """Per-skill trust tracking for autonomy escalation/demotion."""
+
     skill_id: str
     successes: int = 0
     failures: int = 0
@@ -285,5 +310,48 @@ class TrustRecord:
     total_invocations: int = 0
     autonomy_override: AutonomyLevel | None = None
     last_outcome: str = ""
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     recent_outcomes: str = "[]"
+
+
+# --- Phase 3: Approval Rules ---
+
+
+@dataclass
+class ApprovalRule:
+    """Persistent rule for auto-approving or auto-denying actions."""
+
+    rule_id: str = field(default_factory=new_id)
+    rule_type: str = "standing"
+    match_skill: str = "*"
+    match_risk: str = "*"
+    match_path: str | None = None
+    decision: str = "allow"
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    expires_at: str | None = None
+    description: str = ""
+
+
+# --- Phase 3: Trust Recommendations ---
+
+
+@dataclass
+class TrustRecommendation:
+    """Recommendation to escalate or demote a skill's autonomy level."""
+
+    recommendation_id: str = field(default_factory=new_id)
+    skill_id: str = ""
+    current_level: str = ""
+    recommended_level: str = ""
+    direction: str = ""
+    evidence: dict[str, Any] = field(default_factory=dict)
+    status: str = "pending"
+    mission_id: str | None = None
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    resolved_at: str | None = None

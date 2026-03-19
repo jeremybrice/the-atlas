@@ -1,4 +1,5 @@
 """Entity Mapper — bidirectional mapping between ATLAS IDs and external service IDs."""
+
 import json
 import logging
 from datetime import datetime, timezone
@@ -30,11 +31,20 @@ class EntityMapper:
                 atlas_type=excluded.atlas_type,
                 atlas_id=excluded.atlas_id,
                 metadata=excluded.metadata""",
-            (service, external_id, atlas_type, atlas_id, json.dumps(metadata or {}), now),
+            (
+                service,
+                external_id,
+                atlas_type,
+                atlas_id,
+                json.dumps(metadata or {}),
+                now,
+            ),
         )
         await self._db.db.commit()
 
-    async def get_atlas_id(self, service: str, external_id: str) -> tuple[str, str] | None:
+    async def get_atlas_id(
+        self, service: str, external_id: str
+    ) -> tuple[str, str] | None:
         cursor = await self._db.db.execute(
             "SELECT atlas_type, atlas_id FROM entity_mappings WHERE service=? AND external_id=?",
             (service, external_id),
@@ -44,7 +54,9 @@ class EntityMapper:
             return None
         return (row[0], row[1])
 
-    async def get_external_id(self, service: str, atlas_type: str, atlas_id: str) -> str | None:
+    async def get_external_id(
+        self, service: str, atlas_type: str, atlas_id: str
+    ) -> str | None:
         cursor = await self._db.db.execute(
             "SELECT external_id FROM entity_mappings WHERE service=? AND atlas_type=? AND atlas_id=?",
             (service, atlas_type, atlas_id),

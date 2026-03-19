@@ -40,9 +40,7 @@ class EnvironmentFacade:
                     )
                 case "filesystem_write":
                     self._fs.write(action.params["path"], action.params["content"])
-                    return ActionResult(
-                        action_id=action.action_id, status="success"
-                    )
+                    return ActionResult(action_id=action.action_id, status="success")
                 case "filesystem_search":
                     results = self._fs.search(
                         action.params.get("root", "."),

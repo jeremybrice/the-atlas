@@ -1,4 +1,5 @@
 """Filesystem watcher -- monitors file changes and emits ObservationEvents."""
+
 import asyncio
 import fnmatch
 import logging

@@ -1,4 +1,5 @@
 """Scheduled trigger -- fires ObservationEvents on a recurring interval."""
+
 import asyncio
 import logging
 from typing import Any, Callable, Coroutine

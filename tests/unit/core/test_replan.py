@@ -58,10 +58,12 @@ async def test_replan_called_on_task_failure(tmp_path):
     proc = ProcessProvider()
 
     mock_claude = AsyncMock(spec=ClaudeCodeBridge)
-    mock_claude.oneshot = AsyncMock(return_value=ClaudeResponse(
-        content='{"tasks": []}',
-        parsed_output={"tasks": []},
-    ))
+    mock_claude.oneshot = AsyncMock(
+        return_value=ClaudeResponse(
+            content='{"tasks": []}',
+            parsed_output={"tasks": []},
+        )
+    )
 
     env = EnvironmentFacade(filesystem=fs, process=proc, claude=mock_claude)
 
@@ -88,10 +90,16 @@ async def test_replan_called_on_task_failure(tmp_path):
     )
 
     tasks = [
-        Task(description="Read nonexistent file", skill_id="file.read",
-             input_params={"path": str(tmp_path / "nonexistent.txt")}),
-        Task(description="Write a file", skill_id="file.write",
-             input_params={"path": str(tmp_path / "out.txt"), "content": "hello"}),
+        Task(
+            description="Read nonexistent file",
+            skill_id="file.read",
+            input_params={"path": str(tmp_path / "nonexistent.txt")},
+        ),
+        Task(
+            description="Write a file",
+            skill_id="file.write",
+            input_params={"path": str(tmp_path / "out.txt"), "content": "hello"},
+        ),
     ]
     mission = Mission(goal_text="test replanning", tasks=tasks)
     await loop.execute_mission(mission)

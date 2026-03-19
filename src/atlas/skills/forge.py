@@ -1,4 +1,5 @@
 """Skill Forge — generates new skills from capability gap descriptions."""
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -57,7 +58,9 @@ class SkillForge:
             if attempt > 0:
                 prompt += f" Previous attempt failed: {last_error}. Fix the issues."
 
-            response = await self._claude.oneshot(prompt, system_prompt=FORGE_SYSTEM_PROMPT)
+            response = await self._claude.oneshot(
+                prompt, system_prompt=FORGE_SYSTEM_PROMPT
+            )
             code = self._extract_code(response.content)
 
             result = self._validate_and_register(code)
@@ -65,7 +68,10 @@ class SkillForge:
                 return result
             last_error = result.error
 
-        return ForgeResult(success=False, error=f"Failed after {1 + self._max_retries} attempts: {last_error}")
+        return ForgeResult(
+            success=False,
+            error=f"Failed after {1 + self._max_retries} attempts: {last_error}",
+        )
 
     def _extract_code(self, content: str) -> str:
         # Strip markdown fences if present
@@ -95,11 +101,15 @@ class SkillForge:
         # Check required attributes
         for attr in REQUIRED_ATTRS:
             if attr not in namespace:
-                return ForgeResult(success=False, error=f"Missing required attribute: {attr}")
+                return ForgeResult(
+                    success=False, error=f"Missing required attribute: {attr}"
+                )
 
         skill_id = namespace["SKILL_ID"]
         if not skill_id.startswith("custom."):
-            return ForgeResult(success=False, error=f"SKILL_ID must start with 'custom.': {skill_id}")
+            return ForgeResult(
+                success=False, error=f"SKILL_ID must start with 'custom.': {skill_id}"
+            )
 
         # Save to file
         safe_name = skill_id.replace(".", "_") + ".py"

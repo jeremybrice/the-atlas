@@ -1,10 +1,12 @@
 """Daemon main loop -- runs the socket server and dispatches commands."""
+
 import asyncio
 import logging
 import os
 import time
 from typing import Any, Callable, Coroutine
 
+from atlas.control.emergency import EmergencyController
 from atlas.daemon.manager import PidFile
 from atlas.daemon.protocol import DaemonSocketServer
 
@@ -22,6 +24,7 @@ class DaemonLoop:
         http_app: Any | None = None,
         http_host: str = "127.0.0.1",
         http_port: int = 8484,
+        emergency_controller: EmergencyController | None = None,
     ):
         self._socket_path = socket_path
         self._pid_file = PidFile(pid_path)
@@ -36,6 +39,7 @@ class DaemonLoop:
         self._http_port = http_port
         self._http_runner = None
         self._http_running = False
+        self._emergency = emergency_controller or EmergencyController()
 
     async def start(self) -> None:
         self._start_time = time.monotonic()
@@ -52,6 +56,7 @@ class DaemonLoop:
         # Start HTTP server if configured
         if self._http_app:
             from aiohttp import web
+
             self._http_runner = web.AppRunner(self._http_app)
             await self._http_runner.setup()
             site = web.TCPSite(self._http_runner, self._http_host, self._http_port)
@@ -63,10 +68,14 @@ class DaemonLoop:
                 logger.error(
                     "Failed to start HTTP server on %s:%d — %s. "
                     "Daemon continues without HTTP.",
-                    self._http_host, self._http_port, e,
+                    self._http_host,
+                    self._http_port,
+                    e,
                 )
             else:
-                logger.info("HTTP server started on %s:%d", self._http_host, self._http_port)
+                logger.info(
+                    "HTTP server started on %s:%d", self._http_host, self._http_port
+                )
                 self._http_running = True
 
         while self._running:
@@ -94,19 +103,59 @@ class DaemonLoop:
             case "status":
                 return self._handle_status(command_id)
             case "shutdown":
-                asyncio.get_event_loop().call_soon(lambda: asyncio.ensure_future(self.stop()))
-                return {"command_id": command_id, "status": "ok", "payload": {"message": "shutting down"}}
+                asyncio.get_event_loop().call_soon(
+                    lambda: asyncio.ensure_future(self.stop())
+                )
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "shutting down"},
+                }
+            case "pause":
+                self._emergency.pause()
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "paused"},
+                }
+            case "resume":
+                self._emergency.resume()
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"message": "resumed"},
+                }
+            case "kill":
+                task_id = data.get("payload", {}).get("task_id", "")
+                killed = self._emergency.kill_task(task_id)
+                return {
+                    "command_id": command_id,
+                    "status": "ok",
+                    "payload": {"killed": killed},
+                }
             case _:
-                return {"command_id": command_id, "status": "error", "error": f"unknown command: {command}"}
+                return {
+                    "command_id": command_id,
+                    "status": "error",
+                    "error": f"unknown command: {command}",
+                }
 
     async def _handle_goal(self, command_id: str, payload: dict) -> dict:
         if not self._goal_executor:
-            return {"command_id": command_id, "status": "error", "error": "no goal executor configured"}
+            return {
+                "command_id": command_id,
+                "status": "error",
+                "error": "no goal executor configured",
+            }
         try:
             result = await self._goal_executor(payload.get("goal_text", ""))
             return {"command_id": command_id, "status": "ok", "payload": result}
         except Exception as e:
             return {"command_id": command_id, "status": "error", "error": str(e)}
+
+    @property
+    def emergency(self) -> EmergencyController:
+        return self._emergency
 
     def _handle_status(self, command_id: str) -> dict:
         uptime = time.monotonic() - self._start_time
@@ -118,6 +167,8 @@ class DaemonLoop:
                 "uptime_seconds": round(uptime, 1),
                 "running": self._running,
                 "http_running": self._http_running,
+                "paused": self._emergency.is_paused,
+                "active_task_id": self._emergency.active_task_id,
             },
         }
 
@@ -129,7 +180,10 @@ class DaemonLoop:
             server_name = server_cfg.get("name", "")
             if not server_name:
                 continue
-            logger.info("MCP server configured: %s (connection deferred to first use)", server_name)
+            logger.info(
+                "MCP server configured: %s (connection deferred to first use)",
+                server_name,
+            )
 
     def _disconnect_mcp_servers(self) -> None:
         """Unregister all MCP server tools on shutdown."""

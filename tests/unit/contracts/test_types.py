@@ -9,6 +9,8 @@ from atlas.contracts.types import (
     DaemonCommand,
     DaemonResponse,
     TrustRecord,
+    ApprovalRule,
+    TrustRecommendation,
 )
 
 
@@ -72,7 +74,9 @@ def test_procedure_creation():
 def test_daemon_command_and_response():
     cmd = DaemonCommand(command="goal", payload={"goal_text": "do thing"})
     assert cmd.command_id  # auto-generated
-    resp = DaemonResponse(command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"})
+    resp = DaemonResponse(
+        command_id=cmd.command_id, status="ok", payload={"mission_id": "abc"}
+    )
     assert resp.status == "ok"
 
 
@@ -95,3 +99,19 @@ def test_trust_record_with_values():
     assert record.successes == 10
     assert record.failures == 1
     assert record.consecutive_successes == 5
+
+
+def test_approval_rule_defaults():
+    rule = ApprovalRule(match_skill="file.*", decision="allow")
+    assert rule.rule_type == "standing"
+    assert rule.match_risk == "*"
+    assert rule.match_path is None
+    assert rule.expires_at is None
+    assert rule.rule_id  # should have an auto-generated id
+
+
+def test_trust_recommendation_defaults():
+    rec = TrustRecommendation(skill_id="file.read", direction="escalate")
+    assert rec.status == "pending"
+    assert rec.resolved_at is None
+    assert rec.recommendation_id  # auto-generated

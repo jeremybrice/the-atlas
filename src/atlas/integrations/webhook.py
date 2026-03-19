@@ -1,4 +1,5 @@
 """Webhook Server — HTTP endpoint for receiving webhook payloads from external services."""
+
 import json
 import logging
 from typing import Any, Callable, Coroutine
@@ -45,7 +46,10 @@ class WebhookServer:
             raw_body = await request.read()
             signature = self._extract_signature(service, request)
             if not signature or not self._bridge.verify_signature(
-                service, raw_body, signature, secret,
+                service,
+                raw_body,
+                signature,
+                secret,
             ):
                 logger.warning("Webhook signature verification failed for %s", service)
                 return web.json_response(
@@ -56,14 +60,16 @@ class WebhookServer:
                 payload = json.loads(raw_body)
             except Exception:
                 return web.json_response(
-                    {"status": "error", "message": "invalid JSON"}, status=400,
+                    {"status": "error", "message": "invalid JSON"},
+                    status=400,
                 )
         else:
             try:
                 payload = await request.json()
             except Exception:
                 return web.json_response(
-                    {"status": "error", "message": "invalid JSON"}, status=400,
+                    {"status": "error", "message": "invalid JSON"},
+                    status=400,
                 )
 
         event_type = self._extract_event_type(service, request)
