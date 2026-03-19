@@ -83,19 +83,23 @@
                             <div class="flex items-center gap-3 flex-shrink-0">
                                 <span :class="statusBadge(m.status)" class="px-2 py-0.5 rounded text-xs" x-text="m.status"></span>
                                 <span class="text-xs text-[#666]" x-text="new Date(m.created_at).toLocaleString()"></span>
+                                <span x-show="m.updated_at" class="text-xs text-[#555]" x-text="'upd ' + new Date(m.updated_at).toLocaleString()"></span>
                             </div>
                         </div>
                         <div x-show="expandedMission === m.mission_id" class="border-t border-[#1a1a1a] px-4 py-2">
                             <template x-for="t in (tasks[m.mission_id] || [])" :key="t.task_id">
-                                <div class="flex items-center justify-between py-1 text-sm">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[#555]">├</span>
-                                        <span x-text="t.description" class="truncate"></span>
+                                <div class="py-1 text-sm">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[#555]">├</span>
+                                            <span x-text="t.description" class="truncate"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-[#666]" x-text="t.skill_id"></span>
+                                            <span :class="statusBadge(t.status)" class="px-2 py-0.5 rounded text-xs" x-text="t.status"></span>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-[#666]" x-text="t.skill_id"></span>
-                                        <span :class="statusBadge(t.status)" class="px-2 py-0.5 rounded text-xs" x-text="t.status"></span>
-                                    </div>
+                                    <div x-show="t.result" class="ml-6 text-xs text-[#555] truncate" x-text="t.result ? String(t.result).substring(0, 120) + (String(t.result).length > 120 ? '…' : '') : ''"></div>
                                 </div>
                             </template>
                             <div x-show="!tasks[m.mission_id] || tasks[m.mission_id].length === 0" class="text-xs text-[#555] py-1">No tasks</div>
@@ -135,10 +139,13 @@
                     <template x-for="r in trustRecommendations" :key="r.recommendation_id">
                         <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4 flex items-center justify-between">
                             <div>
-                                <span class="text-[#00ff88] font-bold" x-text="r.skill_id"></span>
-                                <span class="mx-2 text-[#555]">&rarr;</span>
-                                <span :class="r.direction === 'escalate' ? 'text-green-400' : 'text-red-400'" x-text="r.direction"></span>
-                                <span class="text-[#666] text-xs ml-2" x-text="r.current_level + ' \u2192 ' + r.recommended_level"></span>
+                                <div>
+                                    <span class="text-[#00ff88] font-bold" x-text="r.skill_id"></span>
+                                    <span class="mx-2 text-[#555]">&rarr;</span>
+                                    <span :class="r.direction === 'escalate' ? 'text-green-400' : 'text-red-400'" x-text="r.direction"></span>
+                                    <span class="text-[#666] text-xs ml-2" x-text="r.current_level + ' \u2192 ' + r.recommended_level"></span>
+                                </div>
+                                <div x-show="r.evidence" class="text-xs text-[#555] mt-1 truncate max-w-lg" x-text="r.evidence ? JSON.stringify(r.evidence).substring(0, 150) + (JSON.stringify(r.evidence).length > 150 ? '\u2026' : '') : ''"></div>
                             </div>
                             <div class="flex gap-2">
                                 <button @click="trustAction(r.recommendation_id, 'accept')" class="bg-green-500/20 text-green-400 px-3 py-1 rounded text-xs hover:bg-green-500/30">Accept</button>
@@ -200,15 +207,17 @@
             <div class="bg-[#141414] border border-[#1a1a1a] rounded overflow-hidden">
                 <table class="w-full text-sm">
                     <thead><tr class="text-[#666] text-xs uppercase border-b border-[#1a1a1a]">
-                        <th class="text-left px-4 py-2">Skill</th><th class="px-4 py-2">Risk</th><th class="px-4 py-2">Decision</th><th class="text-left px-4 py-2">Description</th><th class="px-4 py-2"></th>
+                        <th class="text-left px-4 py-2">ID</th><th class="text-left px-4 py-2">Skill</th><th class="px-4 py-2">Risk</th><th class="px-4 py-2">Decision</th><th class="text-left px-4 py-2">Description</th><th class="px-4 py-2">Expires</th><th class="px-4 py-2"></th>
                     </tr></thead>
                     <tbody>
                         <template x-for="r in rules" :key="r.rule_id">
                             <tr class="border-b border-[#1a1a1a]/50 hover:bg-[#1a1a1a]">
+                                <td class="px-4 py-2 text-[#666] text-xs" x-text="r.rule_id ? r.rule_id.substring(0, 8) : ''"></td>
                                 <td class="px-4 py-2 text-[#00ff88]" x-text="r.match_skill"></td>
                                 <td class="px-4 py-2 text-center" x-text="r.match_risk"></td>
                                 <td class="px-4 py-2 text-center"><span :class="r.decision === 'allow' ? 'text-green-400' : 'text-red-400'" x-text="r.decision"></span></td>
                                 <td class="px-4 py-2 text-[#999]" x-text="r.description"></td>
+                                <td class="px-4 py-2 text-center text-xs text-[#666]" x-text="r.expires_at ? new Date(r.expires_at).toLocaleDateString() : '\u2014'"></td>
                                 <td class="px-4 py-2 text-center"><button @click="removeRule(r.rule_id)" class="text-red-400 hover:text-red-300 text-xs">Remove</button></td>
                             </tr>
                         </template>
@@ -271,15 +280,18 @@
         </div>
 
         <!-- Config Tab -->
-        <div x-show="activeTab === 'config'">
-            <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4">
-                <template x-for="[key, val] in Object.entries(configData)" :key="key">
-                    <div class="flex justify-between py-1 border-b border-[#1a1a1a]/50 text-sm">
-                        <span class="text-[#999]" x-text="key"></span>
-                        <span class="text-[#00ff88]" x-text="typeof val === 'object' ? JSON.stringify(val) : String(val)"></span>
-                    </div>
-                </template>
-            </div>
+        <div x-show="activeTab === 'config'" class="space-y-4">
+            <template x-for="[category, keys] in groupedConfig()" :key="category">
+                <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4">
+                    <h3 class="text-xs uppercase tracking-wider text-[#666] mb-2" x-text="category"></h3>
+                    <template x-for="[key, val] in keys" :key="key">
+                        <div class="flex justify-between py-1 border-b border-[#1a1a1a]/50 text-sm">
+                            <span class="text-[#999]" x-text="key"></span>
+                            <span class="text-[#00ff88]" x-text="typeof val === 'object' ? JSON.stringify(val) : String(val)"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
         </div>
 
     </div>
@@ -403,7 +415,7 @@
             },
 
             async fetchSkills() {
-                try { const res = await fetch('/api/skills'); this.skills = await res.json(); } catch (e) {}
+                try { const res = await fetch('/api/skills'); this.skills = await res.json(); this.skills.sort((a, b) => a.skill_id.localeCompare(b.skill_id)); } catch (e) {}
             },
 
             riskColor(level) {
@@ -474,13 +486,38 @@
                 try { const res = await fetch('/api/config'); this.configData = await res.json(); } catch (e) {}
             },
 
+            groupedConfig() {
+                const categoryMap = {
+                    autonomy_level: 'autonomy',
+                    log_level: 'system',
+                    episode_retention_days: 'memory',
+                    context_token_budget: 'memory',
+                    vector_search_enabled: 'memory',
+                    forge_enabled: 'skills',
+                    seed_skills: 'skills',
+                    observation_watches: 'observation',
+                    reactive_enabled: 'reactive',
+                    mcp_enabled: 'mcp',
+                    webhook_enabled: 'webhook',
+                };
+                const groups = {};
+                for (const [key, val] of Object.entries(this.configData)) {
+                    let cat = categoryMap[key];
+                    if (!cat && key.startsWith('trust_')) cat = 'trust';
+                    if (!cat) cat = 'other';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push([key, val]);
+                }
+                return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+            },
+
             statusBadge(status) {
                 const colors = {
                     completed: 'bg-green-500/20 text-green-400',
                     failed: 'bg-red-500/20 text-red-400',
                     active: 'bg-amber-500/20 text-amber-400',
                     executing: 'bg-amber-500/20 text-amber-400',
-                    pending: 'bg-[#333] text-[#999]',
+                    pending: 'bg-amber-500/20 text-amber-400',
                     cancelled: 'bg-[#222] text-[#666]',
                     planning: 'bg-blue-500/20 text-blue-400',
                 };
