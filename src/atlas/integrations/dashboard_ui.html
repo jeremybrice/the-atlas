@@ -106,6 +106,70 @@
             </div>
         </div>
 
+        <!-- Rules Tab -->
+        <div x-show="activeTab === 'rules'" class="space-y-4">
+            <!-- Add Rule Form -->
+            <div class="bg-[#141414] border border-[#1a1a1a] rounded p-4">
+                <h3 class="text-xs uppercase tracking-wider text-[#666] mb-3">Add Rule <span x-show="ruleFeedback" x-text="ruleFeedback" class="text-[#00ff88] normal-case" x-transition></span></h3>
+                <div class="flex gap-3 items-end flex-wrap">
+                    <div><label class="text-xs text-[#666] block mb-1">Skill Pattern</label><input x-model="newRule.match_skill" class="bg-[#0a0a0a] border border-[#333] rounded px-2 py-1 text-sm w-32" /></div>
+                    <div><label class="text-xs text-[#666] block mb-1">Risk</label>
+                        <select x-model="newRule.match_risk" class="bg-[#0a0a0a] border border-[#333] rounded px-2 py-1 text-sm">
+                            <option value="*">*</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+                        </select></div>
+                    <div><label class="text-xs text-[#666] block mb-1">Decision</label>
+                        <select x-model="newRule.decision" class="bg-[#0a0a0a] border border-[#333] rounded px-2 py-1 text-sm">
+                            <option value="allow">allow</option><option value="deny">deny</option>
+                        </select></div>
+                    <div class="flex-1"><label class="text-xs text-[#666] block mb-1">Description</label><input x-model="newRule.description" class="bg-[#0a0a0a] border border-[#333] rounded px-2 py-1 text-sm w-full" /></div>
+                    <button @click="addRule()" class="bg-[#00ff88] text-black px-3 py-1 rounded text-xs font-bold hover:bg-[#00cc66]">Add</button>
+                </div>
+            </div>
+            <!-- Rules Table -->
+            <div class="bg-[#141414] border border-[#1a1a1a] rounded overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-[#666] text-xs uppercase border-b border-[#1a1a1a]">
+                        <th class="text-left px-4 py-2">Skill</th><th class="px-4 py-2">Risk</th><th class="px-4 py-2">Decision</th><th class="text-left px-4 py-2">Description</th><th class="px-4 py-2"></th>
+                    </tr></thead>
+                    <tbody>
+                        <template x-for="r in rules" :key="r.rule_id">
+                            <tr class="border-b border-[#1a1a1a]/50 hover:bg-[#1a1a1a]">
+                                <td class="px-4 py-2 text-[#00ff88]" x-text="r.match_skill"></td>
+                                <td class="px-4 py-2 text-center" x-text="r.match_risk"></td>
+                                <td class="px-4 py-2 text-center"><span :class="r.decision === 'allow' ? 'text-green-400' : 'text-red-400'" x-text="r.decision"></span></td>
+                                <td class="px-4 py-2 text-[#999]" x-text="r.description"></td>
+                                <td class="px-4 py-2 text-center"><button @click="removeRule(r.rule_id)" class="text-red-400 hover:text-red-300 text-xs">Remove</button></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="rules.length === 0" class="text-[#555] text-sm p-4 text-center">No standing rules</div>
+            </div>
+        </div>
+
+        <!-- Audit Tab -->
+        <div x-show="activeTab === 'audit'">
+            <div class="bg-[#141414] border border-[#1a1a1a] rounded overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-[#666] text-xs uppercase border-b border-[#1a1a1a]">
+                        <th class="text-left px-4 py-2">Timestamp</th><th class="text-left px-4 py-2">Action</th><th class="text-left px-4 py-2">Actor</th><th class="px-4 py-2">Outcome</th><th class="text-left px-4 py-2">Mission</th>
+                    </tr></thead>
+                    <tbody>
+                        <template x-for="e in auditEntries" :key="e.entry_id">
+                            <tr class="border-b border-[#1a1a1a]/50 hover:bg-[#1a1a1a]">
+                                <td class="px-4 py-2 text-[#666] text-xs whitespace-nowrap" x-text="new Date(e.timestamp).toLocaleString()"></td>
+                                <td class="px-4 py-2" x-text="e.action_type"></td>
+                                <td class="px-4 py-2 text-[#999]" x-text="e.actor"></td>
+                                <td class="px-4 py-2 text-center"><span :class="statusBadge(e.outcome)" class="px-2 py-0.5 rounded text-xs" x-text="e.outcome"></span></td>
+                                <td class="px-4 py-2 text-[#555] text-xs" x-text="e.mission_id ? e.mission_id.substring(0, 8) + '...' : '—'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                <div x-show="auditEntries.length === 0" class="text-[#555] text-sm p-4 text-center">No audit entries</div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -138,6 +202,14 @@
             missions: [],
             tasks: {},
             expandedMission: null,
+
+            // Rules
+            rules: [],
+            newRule: { match_skill: '*', match_risk: '*', decision: 'allow', description: '' },
+            ruleFeedback: '',
+
+            // Audit
+            auditEntries: [],
 
             // Polling
             statusInterval: null,
@@ -177,6 +249,8 @@
 
             async pollTab() {
                 if (this.activeTab === 'missions') await this.fetchMissions();
+                else if (this.activeTab === 'rules') await this.fetchRules();
+                else if (this.activeTab === 'audit') await this.fetchAudit();
             },
 
             async fetchMissions() {
@@ -193,6 +267,32 @@
                     const res = await fetch('/api/tasks?mission_id=' + missionId);
                     this.tasks[missionId] = await res.json();
                 } catch (e) {}
+            },
+
+            async fetchRules() {
+                try { const res = await fetch('/api/approvals/rules'); this.rules = await res.json(); } catch (e) {}
+            },
+
+            async addRule() {
+                try {
+                    const res = await fetch('/api/approvals/rules', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(this.newRule) });
+                    if (res.ok) { this.ruleFeedback = 'Rule added'; this.newRule = { match_skill: '*', match_risk: '*', decision: 'allow', description: '' }; this.fetchRules(); }
+                    else { this.ruleFeedback = 'Error'; }
+                } catch (e) { this.ruleFeedback = 'Error'; }
+                setTimeout(() => this.ruleFeedback = '', 2000);
+            },
+
+            async removeRule(ruleId) {
+                try {
+                    await fetch('/api/approvals/rules/' + ruleId, { method: 'DELETE' });
+                    this.ruleFeedback = 'Rule removed';
+                    this.fetchRules();
+                } catch (e) { this.ruleFeedback = 'Error'; }
+                setTimeout(() => this.ruleFeedback = '', 2000);
+            },
+
+            async fetchAudit() {
+                try { const res = await fetch('/api/audit?limit=100'); this.auditEntries = await res.json(); } catch (e) {}
             },
 
             statusBadge(status) {
