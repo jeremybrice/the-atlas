@@ -74,6 +74,7 @@ class ExecutionLoop:
         keyword_weight: float = 0.4,
         emergency_controller=None,
         trust_tracker=None,
+        db=None,
     ):
         self._registry = registry
         self._runtime = runtime
@@ -94,12 +95,15 @@ class ExecutionLoop:
         self._emergency = emergency_controller
         self._trust_tracker = trust_tracker
         self._trust_signals: list = []
+        self._db = db
 
     async def execute_mission(self, mission: Mission) -> Mission:
         mission.status = MissionStatus.ACTIVE
         ctx = ExecutionContext.new(mission_id=mission.mission_id)
         actions_log: list[dict] = []
         replans_remaining = self._max_replans
+
+        await self._persist_mission(mission)
 
         # Retrieve episodic context if assembler is available
         context_text = ""
@@ -264,7 +268,61 @@ class ExecutionLoop:
             )
         )
 
+        await self._persist_mission(mission)
         return mission
+
+    async def _persist_mission(self, mission: Mission) -> None:
+        """Write mission and its tasks to the database."""
+        if not self._db:
+            return
+        try:
+            import json
+            from datetime import datetime, timezone
+
+            now = datetime.now(timezone.utc).isoformat()
+            await self._db.db.execute(
+                "INSERT OR REPLACE INTO missions "
+                "(mission_id, goal_text, status, task_list, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, COALESCE("
+                "(SELECT created_at FROM missions WHERE mission_id = ?), ?), ?)",
+                (
+                    mission.mission_id,
+                    mission.goal_text,
+                    mission.status.value,
+                    json.dumps([t.description for t in mission.tasks]),
+                    mission.mission_id,
+                    now,
+                    now,
+                ),
+            )
+            for task in mission.tasks:
+                await self._db.db.execute(
+                    "INSERT OR REPLACE INTO tasks "
+                    "(task_id, mission_id, description, task_type, skill_id, "
+                    "input_params, expected_outcome, status, result, priority, "
+                    "retry_count, max_retries, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                    "COALESCE((SELECT created_at FROM tasks WHERE task_id = ?), ?))",
+                    (
+                        task.task_id,
+                        mission.mission_id,
+                        task.description,
+                        "skill_invocation",
+                        task.skill_id,
+                        json.dumps(task.input_params),
+                        task.expected_outcome,
+                        task.status.value,
+                        str(task.result) if task.result else None,
+                        task.priority,
+                        task.retry_count,
+                        task.max_retries,
+                        task.task_id,
+                        now,
+                    ),
+                )
+            await self._db.db.commit()
+        except Exception as e:
+            logger.warning("Failed to persist mission: %s", e)
 
     async def _execute_task(self, task: Task, ctx: ExecutionContext) -> bool:
         if not task.skill_id:

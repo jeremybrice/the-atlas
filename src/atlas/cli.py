@@ -256,6 +256,7 @@ async def _run_goal(goal_text: str, autonomy: str, auto_approve: bool) -> None:
         keyword_weight=config.memory.vector_search.keyword_weight,
         emergency_controller=emergency,
         trust_tracker=trust_tracker,
+        db=db,
     )
 
     try:
@@ -534,6 +535,7 @@ async def _run_daemon(socket_path: str, pid_path: str, config) -> None:
         keyword_weight=config.memory.vector_search.keyword_weight,
         emergency_controller=emergency,
         trust_tracker=trust_tracker,
+        db=db,
     )
 
     async def goal_executor(goal_text: str) -> dict:

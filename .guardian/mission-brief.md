@@ -1,50 +1,29 @@
 # Mission Brief
 
 **Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-18-control-plane-completion-design.md
-**Implementation Plan:** docs/plans/2026-03-18-control-plane-completion.md
+**Design Doc:** docs/plans/2026-03-18-dashboard-ui-design.md
+**Implementation Plan:** docs/plans/2026-03-18-dashboard-ui-implementation.md
 **Created:** 2026-03-18
 
 ## Requirements Summary
 
-1. **Emergency Controls** — EmergencyController class with pause/resume/kill operations. Wire into DaemonLoop (3 new socket commands: pause, resume, kill) and ExecutionLoop (asyncio.Event gating before each task, cancellation checks). Add `atlas daemon pause/resume/kill` CLI commands. Add 3 dashboard endpoints (POST /api/emergency/pause, /resume, /kill).
-
-2. **Batch + Standing Approval Rules** — New `approval_rules` SQLite table. ApprovalRuleStore class with fnmatch glob-based matching, risk level comparison, path prefix matching, and expiration pruning. Wire into ApprovalWorkflow (check standing rules before terminal prompt, add `always/never` terminal options that create rules, add `request_batch_approval()` method). Add `atlas rules list/add/remove` CLI commands. Add 3 dashboard endpoints (GET/POST/DELETE /api/approvals/rules).
-
-3. **Trust Recommendations** — New `trust_recommendations` SQLite table. TrustRecommendation dataclass. TrustTracker gains `create_recommendation()`, `list_recommendations()`, `resolve_recommendation()` methods. ExecutionLoop collects TrustOutcome signals during execution and creates recommendations post-mission. CLI prints post-mission trust summary with y/n/select prompts. Add `atlas trust recommendations/accept/dismiss/status` CLI commands. Add 4 dashboard endpoints.
-
-4. **Full Dashboard API** — Refactor DashboardServer constructor to accept optional emergency_controller, approval_rule_store, trust_tracker, config. Components return 501 if None. Add endpoints: GET /api/tasks, GET /api/health, GET /api/config, GET /api/connectors. Enhance GET /api/status with paused, active_task_id, standing_rules_count. Enhance GET /api/memory/stats with embedding_count. Total: 20 endpoints.
-
-5. **Wiring** — Wire all new components into both `_run_goal` (inline CLI) and `_run_daemon` (background daemon) paths in cli.py. Share EmergencyController instance between DaemonLoop and ExecutionLoop.
+1. Create `src/atlas/integrations/dashboard_ui.html` — single-file frontend using Alpine.js 3.x (CDN) + Tailwind CSS 3.x (CDN) + JetBrains Mono font (CDN)
+2. Add `GET /` route to `DashboardServer` in `src/atlas/integrations/dashboard.py` that serves the HTML file
+3. Persistent status bar with three rows: state/uptime/active task, health indicators (4 dots), goal input + emergency controls (pause/resume/kill)
+4. 8 tabbed content sections: Missions (expandable to show tasks), Skills (card grid), Trust (records table + recommendation cards with accept/dismiss), Rules (add form + table with remove), Audit (scrollable table), Memory (3 stat cards), Connectors (status cards), Config (read-only key-value)
+5. Auto-polling: 3s for status bar (`/api/status` + `/api/health`), 5s for active tab; inactive tabs not polled; polling pauses on browser tab hidden (Page Visibility API)
+6. All interactive actions via `fetch()` to existing `/api/*` endpoints with inline feedback that fades after 2 seconds
+7. Dark terminal aesthetic: `#0a0a0a` bg, `#141414` cards, `#00ff88` green accent, `#ffaa00` amber, `#ff4444` red, 4px border radius
+8. No modals, no popups, no build step, no npm, no WebSocket
 
 ## Key Files
 
-**Create:**
-- `src/atlas/control/emergency.py` — EmergencyController class
-- `src/atlas/control/approval_rules.py` — ApprovalRuleStore + glob matching
-
-**Modify:**
-- `src/atlas/contracts/types.py` — Add ApprovalRule, TrustRecommendation dataclasses
-- `src/atlas/memory/store.py` — Add approval_rules and trust_recommendations table schemas
-- `src/atlas/control/approval.py` — Wire rule store, batch approval, always/never prompts
-- `src/atlas/control/trust.py` — Add recommendation create/list/resolve methods
-- `src/atlas/core/loop.py` — Pause gating, trust signal collection, cancellation checks
-- `src/atlas/core/missions.py` — Add trust_recommendations field to Mission
-- `src/atlas/daemon/loop.py` — pause/resume/kill command handlers, accept EmergencyController
-- `src/atlas/integrations/dashboard.py` — Refactor constructor, add 14 new endpoints
-- `src/atlas/cli.py` — daemon pause/resume/kill, rules group, trust group, post-mission summary, full wiring
-
-**Test files to create:**
-- `tests/unit/control/test_emergency.py`
-- `tests/unit/control/test_approval_rules.py`
-- `tests/unit/control/test_trust_recommendations.py`
-- `tests/unit/core/test_loop_emergency.py`
-- `tests/integration/test_control_plane_completion.py`
-
-**Test files to modify:**
-- `tests/unit/daemon/test_daemon_loop.py`
-- `tests/unit/control/test_approval.py`
-- `tests/unit/integrations/test_dashboard.py`
+- `src/atlas/integrations/dashboard.py` — Existing dashboard API server; add `GET /` route and `_serve_ui` handler
+- `src/atlas/integrations/dashboard_ui.html` — New file: the entire frontend (HTML + Alpine.js + Tailwind)
+- `src/atlas/cli.py:615-633` — Where dashboard app is mounted into webhook HTTP server (read-only context)
+- `tests/unit/integrations/test_dashboard.py` — Existing tests; add test for `GET /` serving HTML
+- `config/default.yaml` — Default config (read-only reference for config tab display)
+- `CLAUDE.md` — Project conventions
 
 ## Test Command
 
@@ -59,23 +38,19 @@ source .venv/bin/activate && ruff check src/ tests/
 
 ## Developer Callouts
 
-- **Python 3.12+** — use `str | None` syntax, no `from __future__ import annotations` needed in new files
+- **Python 3.12+** — use `str | None` syntax, no `from __future__ import annotations`
 - **Real SQLite in tests** — use `tmp_path` fixtures, no database mocks
 - **ClaudeCodeBridge is the only mock** — everything else uses real implementations
-- **Integration-focused testing** — unit test complex logic only
 - **Absolute imports only** — `from atlas.x import Y`, no relative cross-domain imports
-- **Error hierarchy** — all errors extend `RetriableError` or `FatalError` from `contracts/errors.py`
-- **correlation_id** — propagated via `ExecutionContext` through all cross-domain calls
-- **Existing tests must not break** — 273 tests currently passing
+- **Existing tests must not break** — 317 tests currently passing
+- The HTML file is the bulk of the work; the Python change is minimal (one route + one handler)
 
 ## Success Criteria
 
-1. All 4 slices implemented end-to-end (schema → logic → CLI → dashboard)
-2. EmergencyController pause/resume/kill works via daemon socket, CLI, and dashboard
-3. Standing approval rules auto-approve/deny matching actions without terminal prompts
-4. Batch approval presents grouped actions when multiple need approval
-5. Trust recommendations created post-mission, surfaced in CLI summary, queryable via `atlas trust`
-6. Dashboard API has 20 functioning endpoints (existing + new)
-7. Full test suite passes (273+ tests, including new ones)
-8. Linter passes (`ruff check src/ tests/`)
-9. All new components default to None so existing code paths are unaffected
+1. Opening `http://localhost:8484/` in a browser when the daemon is running with `webhook.enabled=true` and `dashboard_enabled=true` shows the full dashboard
+2. Status bar displays live daemon state, uptime, health, and provides working goal input and emergency controls
+3. All 8 tabs render correctly with data from the API
+4. Interactive controls (submit goal, pause/resume/kill, trust accept/dismiss, rule add/remove) work and show inline feedback
+5. Auto-polling refreshes data without manual reload
+6. All existing tests continue to pass, plus new test for `GET /` route
+7. Dark terminal command-center aesthetic matches the design doc color scheme

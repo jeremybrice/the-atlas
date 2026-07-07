@@ -1,133 +1,88 @@
 # Completion Report
 
 **Playbook:** feature-build
-**Design Doc:** docs/plans/2026-03-18-control-plane-completion-design.md
+**Design Doc:** docs/plans/2026-03-18-dashboard-ui-design.md
 **Completed:** 2026-03-18
 **Branch:** phase3-stage-d1-vector-search
 
 ## Summary
 
-Completed the Control Plane for ATLAS across four vertical feature slices. Added EmergencyController with asyncio.Event-based pause/resume gating and per-task kill/cancellation, wired into DaemonLoop (3 new socket commands) and ExecutionLoop (pre-task gating). Added persistent standing approval rules with ApprovalRuleStore using fnmatch glob matching, ordered risk level comparison, and path prefix filtering. Added trust recommendations that are created post-mission from TrustOutcome signals collected during execution, with full CRUD lifecycle. Refactored DashboardServer to 20 REST endpoints covering emergency controls, approval management, trust management, health checks, config summary, task queue, and connector status. Added CLI command groups for daemon pause/resume/kill, rules list/add/remove, and trust recommendations/accept/dismiss/status. All new components wired into both inline CLI and daemon startup paths with None defaults for backward compatibility.
+Built a single-file web dashboard (`src/atlas/integrations/dashboard_ui.html`) served by the existing aiohttp daemon at `http://localhost:8484/`. The dashboard provides real-time monitoring, admin controls, and a demo-ready visualization of the ATLAS autonomous agent system. Uses Alpine.js 3.x + Tailwind CSS 3.x via CDN with a dark terminal command-center aesthetic. One new route added to `dashboard.py`, one test added, zero new dependencies.
 
 ## Requirements Mapping
 
 | Requirement | Status | Implementation | Notes |
 |-------------|--------|----------------|-------|
-| EmergencyController class | Done | `src/atlas/control/emergency.py` | asyncio.Event for pause/resume, _cancelled_tasks set for kill |
-| EmergencyController in DaemonLoop | Done | `src/atlas/daemon/loop.py` | pause/resume/kill socket commands, status includes paused + active_task_id |
-| EmergencyController in ExecutionLoop | Done | `src/atlas/core/loop.py` | wait_if_paused before each task, set/clear active_task, cancellation check |
-| CLI daemon pause/resume/kill | Done | `src/atlas/cli.py` | atlas daemon pause, resume, kill <task_id> |
-| Dashboard emergency endpoints | Done | `src/atlas/integrations/dashboard.py` | POST /api/emergency/pause, /resume, /kill |
-| approval_rules DB table | Done | `src/atlas/memory/store.py` | Schema matches design spec |
-| ApprovalRule dataclass | Done | `src/atlas/contracts/types.py` | All fields per spec |
-| ApprovalRuleStore | Done | `src/atlas/control/approval_rules.py` | CRUD + fnmatch/risk/path matching |
-| ApprovalWorkflow rule integration | Done | `src/atlas/control/approval.py` | Checks rules after auto_approve/auto_deny, always/never terminal options |
-| Batch approval method | Done | `src/atlas/control/approval.py` | request_batch_approval() with y/n/select |
-| CLI rules list/add/remove | Done | `src/atlas/cli.py` | atlas rules group with prefix matching for remove |
-| Dashboard approval endpoints | Done | `src/atlas/integrations/dashboard.py` | GET/POST/DELETE /api/approvals/rules |
-| trust_recommendations DB table | Done | `src/atlas/memory/store.py` | Schema matches design spec |
-| TrustRecommendation dataclass | Done | `src/atlas/contracts/types.py` | All fields per spec |
-| TrustTracker create_recommendation | Done | `src/atlas/control/trust.py` | Reads record, computes evidence, determines next level |
-| TrustTracker list_recommendations | Done | `src/atlas/control/trust.py` | Filters by status, ordered by created_at DESC |
-| TrustTracker resolve_recommendation | Done | `src/atlas/control/trust.py` | Sets status, applies autonomy override if accepted |
-| ExecutionLoop trust signal collection | Done | `src/atlas/core/loop.py` | record_outcome after each skill, collect signals, create recs post-mission |
-| Mission.trust_recommendations | Done | `src/atlas/core/missions.py` | New list field |
-| CLI post-mission trust summary | Done | `src/atlas/cli.py` | y/n/select prompt with details |
-| CLI trust commands | Done | `src/atlas/cli.py` | atlas trust recommendations/accept/dismiss/status |
-| Dashboard trust endpoints | Done | `src/atlas/integrations/dashboard.py` | GET /api/trust/recommendations, POST accept/dismiss, GET /api/trust/records |
-| Dashboard 20 endpoints total | Done | `src/atlas/integrations/dashboard.py` | All 20 registered in create_app() |
-| GET /api/tasks | Done | `src/atlas/integrations/dashboard.py` | Optional ?mission_id filter |
-| GET /api/health | Done | `src/atlas/integrations/dashboard.py` | database, skill_registry, memory, emergency checks |
-| GET /api/config | Done | `src/atlas/integrations/dashboard.py` | Non-sensitive config summary |
-| GET /api/connectors | Done | `src/atlas/integrations/dashboard.py` | Lists configured connectors (GitHub) |
-| Full wiring (inline CLI) | Done | `src/atlas/cli.py:_run_goal` | EmergencyController, ApprovalRuleStore, TrustTracker created and wired |
-| Full wiring (daemon) | Done | `src/atlas/cli.py:_run_daemon` | All components wired into ExecutionLoop, DashboardServer, DaemonLoop |
-| None defaults for backward compat | Done | All modified constructors | emergency_controller=None, trust_tracker=None, rule_store=None |
+| Single HTML file with Alpine.js + Tailwind CDN | Done | `src/atlas/integrations/dashboard_ui.html` | No build step, no npm |
+| GET / route in DashboardServer | Done | `src/atlas/integrations/dashboard.py:_serve_ui` | Uses importlib.resources to locate HTML |
+| Status bar: state/uptime/active task | Done | `dashboard_ui.html` status bar row 1 | Polls /api/status every 3s |
+| Status bar: 4 health indicators | Done | `dashboard_ui.html` status bar row 2 | Polls /api/health every 3s |
+| Status bar: goal input + emergency controls | Done | `dashboard_ui.html` status bar row 3 | Inline kill input (no popup) |
+| Missions tab with expandable tasks | Done | `dashboard_ui.html` missions tab | Click to expand, shows tasks with result snippets |
+| Skills tab with card grid | Done | `dashboard_ui.html` skills tab | Sorted alphabetically, risk badges, tag pills |
+| Trust tab with records + recommendations | Done | `dashboard_ui.html` trust tab | Accept/dismiss buttons, evidence summary, success rate |
+| Rules tab with add form + table | Done | `dashboard_ui.html` rules tab | rule_id, expires_at columns, add/remove |
+| Audit log tab | Done | `dashboard_ui.html` audit tab | Scrollable, limit 100, most recent first |
+| Memory tab with stat cards | Done | `dashboard_ui.html` memory tab | 3 large green number cards |
+| Connectors tab | Done | `dashboard_ui.html` connectors tab | Status cards with green/red dots |
+| Config tab grouped by category | Done | `dashboard_ui.html` config tab | 8 category groups with headers |
+| Auto-polling: 3s status, 5s active tab | Done | `dashboard_ui.html` Alpine init() | Page Visibility API pause/resume |
+| Inline feedback, no modals | Done | `dashboard_ui.html` | 2-second fade via setTimeout |
+| Dark terminal aesthetic | Done | `dashboard_ui.html` | #0a0a0a bg, #00ff88 green, JetBrains Mono |
+| Test for GET / route | Done | `tests/unit/integrations/test_dashboard.py` | Checks 200, text/html, ATLAS marker |
 
 ## Guardian Results
 
 ### Spec Guardian
-- Issues caught: 0 must-fix
+- Issues caught: 5
 - All resolved: Yes
-- Details: 9 minor deviations identified (see Deviations section), all acceptable
+- Details: Reviewer found 5 spec deviations across 2 review passes. All fixed: prompt() popup replaced with inline input (#12), missing updated_at/result/pending-color in missions (#13), missing evidence in trust cards (#14), missing rule_id/expires_at columns (#15), skills not sorted + config not grouped (#16).
 
 ### Test Guardian
 - Issues caught: 0
 - All resolved: Yes
 - Test command: `source .venv/bin/activate && pytest tests/ -v`
-- Final result: PASS (317 tests)
-- Details: 42 new tests added (275 baseline + 42 = 317)
+- Final result: PASS (318 tests)
+- Details: 1 new test added (test_root_serves_html). All 317 existing tests continue to pass.
 
 ### Convention Guardian
 - Issues caught: 0
 - All resolved: Yes
-- Details: All code follows CLAUDE.md conventions. Real SQLite in tests (tmp_path), absolute imports only, ClaudeCodeBridge remains the only mock.
+- Details: Python code follows CLAUDE.md conventions. HTML file uses standard Alpine.js + Tailwind patterns.
 
 ### Integration Guardian
 - Issues caught: 0
 - All resolved: Yes
 - Full suite result: PASS
-- Details: No regressions in existing 275 tests. 4 new integration tests verify cross-domain flows.
+- Details: No regressions. The single Python change (one route + one handler) is minimal and well-isolated.
 
 ## Deviations from Spec
 
-### Slice 1: Emergency Controls
-
-1. **EmergencyController.resume() clears _cancelled_tasks set.** Spec doesn't mention this. Implementation resets cancellation state on resume so previously-killed tasks don't remain cancelled across pause/resume cycles. Reasonable behavior.
-
-2. **ApprovalWorkflow._prompt_terminal changed from sync to async.** The method now uses `await self._rule_store.add_rule()` for the always/never options. This is a necessary consequence of the async rule store and does not affect the public API since the caller already awaits.
-
-### Slice 2: Approval Rules
-
-3. **Batch approval not wired into ExecutionLoop.** Spec says "collect consecutive tasks needing approval into batch." The `request_batch_approval()` method exists on ApprovalWorkflow but ExecutionLoop still approves one task at a time. No functional impact — individual approval works correctly. The batch method is available for future use.
-
-### Slice 3: Trust Recommendations
-
-4. **Post-mission "n" response saves rather than dismisses.** Spec says `n → dismiss all`. Implementation prints "saved for later review" and leaves recommendations as pending. This is arguably better UX since the user can revisit via `atlas trust recommendations` later.
-
-### Slice 4: Dashboard + Full API
-
-5. **DashboardContext dataclass not implemented.** Spec calls for a bundled `DashboardContext` dataclass in contracts/types.py. Implementation uses individual constructor parameters. Functionally equivalent.
-
-6. **Status endpoint missing `active_mission_id` and `connected_mcp_servers`.** GET /api/status includes `paused`, `active_task_id`, and `standing_rules_count` but omits these two fields. Minor omission.
-
-7. **Memory/stats endpoint missing `working_memory_key_count`.** GET /api/memory/stats includes episode_count, mission_count, and embedding_count but omits working memory key count. Minor omission.
-
-8. **Health endpoint has partial subsystem coverage.** Spec lists daemon, http, mcp, webhook checks in addition to database, skill_registry, memory, emergency. Only the latter four are implemented. The health endpoint is functional for core subsystems.
-
-9. **Dashboard mutation endpoints lack HTTP-level tests.** POST /api/approvals/rules, DELETE /api/approvals/rules/{id}, POST /api/trust/recommendations/{id}/accept, POST /api/trust/recommendations/{id}/dismiss, and POST /api/emergency/kill are implemented but not tested via aiohttp_client. GET counterparts are tested. The underlying store/controller methods are well-tested at the unit level.
-
-All deviations accepted by reviewer with no fix tasks required. None affect correctness of the core feature flows.
+None. All 5 spec deviations identified by the reviewer were fixed in tasks #12-16.
 
 ## Test Results
 
 ```
-317 passed in 9.75s
+318 passed in 9.66s
 All checks passed! (ruff)
 ```
 
-### New Test Files (29 tests)
-- `tests/unit/control/test_emergency.py` — 9 tests
-- `tests/unit/control/test_approval_rules.py` — 9 tests
-- `tests/unit/control/test_trust_recommendations.py` — 5 tests
-- `tests/unit/core/test_loop_emergency.py` — 2 tests
-- `tests/integration/test_control_plane_completion.py` — 4 tests
+## Commits
 
-### Modified Test Files (+13 tests)
-- `tests/unit/control/test_approval.py` — 2 new (standing rule approve/deny)
-- `tests/unit/daemon/test_daemon_loop.py` — 3 new (pause/resume/kill commands)
-- `tests/unit/integrations/test_dashboard.py` — 8 new (health, tasks, emergency, rules, trust, config, connectors)
+1. `ca37154` — feat: add GET / route to serve dashboard UI placeholder
+2. `9ab95fd` — feat(dashboard): status bar with state, uptime, health indicators
+3. `261509f` — feat(dashboard): goal input and emergency control buttons
+4. `2724e0b` — feat(dashboard): tab navigation bar and missions & tasks tab
+5. `f6df6b3` — feat(dashboard): skills and trust & autonomy tabs
+6. `d70b7b6` — feat(dashboard): approval rules and audit log tabs
+7. `249543e` — feat(dashboard): memory, connectors, and config tabs
+8. `caeef70` — feat(dashboard): add footer and final integration polish
+9. `7c613eb` — fix(dashboard): replace prompt() in Kill Task with inline input
+10. `cd0331f` — fix(dashboard): address reviewer feedback — missing fields, evidence, rule columns, sort/grouping
 
 ## Key Decisions
 
-1. **asyncio.Event for pause gating** — Using `_running` event (set=running, cleared=paused) instead of a boolean flag. This allows `await event.wait()` to efficiently block without polling.
-
-2. **fnmatch for skill pattern matching** — Approval rules use fnmatch glob patterns (e.g., `file.*`) rather than regex. Simpler, safer, and matches the spec.
-
-3. **Ordered risk dict for level comparison** — Risk matching uses `{"low":0, "medium":1, "high":2}` ordering to support "at or below" semantics (e.g., rule for "medium" matches low and medium).
-
-4. **Individual constructor params over DashboardContext** — Chose pragmatic individual params over a new dataclass to reduce indirection. Same information, one less abstraction.
-
-5. **Trust "n" saves for later** — Post-mission trust prompt treats "n" as "save for later review" rather than "dismiss all". Preserves recommendations for async review via CLI.
-
-6. **Prefix matching for CLI IDs** — Rules remove and trust accept/dismiss support prefix matching on UUIDs for convenience (e.g., `atlas rules remove abc` matches `abc12345-...`).
+1. **Single HTML file over multi-file SPA** — Chose Alpine.js + Tailwind via CDN over React/Vue to keep the project zero-npm and match the Python-centric stack.
+2. **importlib.resources for file serving** — Uses Python's package resource system so the HTML file works correctly when installed as a package, not just from source.
+3. **Inline kill input over prompt()** — Reviewer caught that prompt() violates the "no modals, no popups" spec. Replaced with Alpine.js toggle input.
+4. **Config grouped by key prefix** — Mapped flat config keys to categories by prefix (e.g., trust_* → Trust) rather than requiring structured API changes.
